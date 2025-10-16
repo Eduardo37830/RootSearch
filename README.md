@@ -2,15 +2,43 @@
 
 ## Descripción
 
-RootSearch es un proyecto desarrollado para la asignatura de Ingeniería de Software III. Este proyecto incluye un backend, un frontend, documentación y configuración de infraestructura.
+RootSearch es un proyecto desarrollado para la asignatura de Ingeniería de Software III. Este proyecto es un monorepo que incluye un backend desarrollado con NestJS, un frontend desarrollado con Next.js (TypeScript, Tailwind CSS), documentación y configuración de infraestructura.
 
 ## Estructura del Proyecto
 
-- `backend/`: Código del servidor backend.
-- `frontend/`: Código de la interfaz de usuario frontend.
+- `backend/`: Código del servidor backend desarrollado con NestJS.
+- `frontend/`: Código de la interfaz de usuario frontend desarrollado con Next.js (TypeScript, Tailwind CSS).
 - `docs/`: Documentación del proyecto.
 - `ci/`: Configuraciones de integración continua.
 - `infra/`: Configuraciones de infraestructura, incluyendo Docker.
+
+## Monorepo
+
+Este proyecto utiliza npm workspaces para gestionar el monorepo. Los workspaces son `backend` y `frontend`.
+
+### Scripts disponibles en la raíz:
+
+- `npm run dev`: Ejecuta el modo desarrollo en todos los workspaces.
+- `npm run build`: Construye todos los workspaces.
+- `npm run start`: Inicia la producción en todos los workspaces.
+- `npm run lint`: Ejecuta linting en todos los workspaces.
+- `npm run test`: Ejecuta tests en todos los workspaces.
+- `npm run format`: Formatea el código en todos los workspaces.
+
+### Configuraciones compartidas:
+
+- ESLint y Prettier configurados en la raíz para consistencia.
+- .gitignore compartido.
+- Docker Compose para desarrollo en `infra/docker/docker-compose.dev.yml`.
+
+## CI/CD
+
+El proyecto incluye configuraciones de integración continua en la carpeta `ci/`. Los workflows de GitHub Actions ejecutan linting, tests y builds automáticamente en pushes y pull requests.
+
+## Infraestructura
+
+- Dockerfiles para backend y frontend en `infra/docker/`.
+- Docker Compose para desarrollo con base de datos PostgreSQL.
 
 ## Instalación
 
@@ -24,31 +52,42 @@ RootSearch es un proyecto desarrollado para la asignatura de Ingeniería de Soft
    cd RootSearch
    ```
 
-3. Instala las dependencias del backend (si aplica):
+3. Instala todas las dependencias (incluyendo workspaces):
    ```
-   cd backend
-   # Instala dependencias, por ejemplo: npm install o pip install -r requirements.txt
+   npm install
    ```
 
-4. Instala las dependencias del frontend (si aplica):
-   ```
-   cd ../frontend
-   # Instala dependencias, por ejemplo: npm install
-   ```
+4. Configura las variables de entorno:
+   - Copia `.env.example` a `.env` en la raíz y ajusta las variables compartidas.
+   - Copia `backend/.env.example` a `backend/.env` y configura las variables del backend.
+   - Copia `frontend/.env.example` a `frontend/.env` y configura las variables del frontend.
 
 ## Uso
 
-1. Para ejecutar el backend:
+Para ejecutar todo el proyecto en modo desarrollo:
+```
+npm run dev
+```
+
+O individualmente:
+
+1. Para ejecutar el backend (NestJS):
    ```
    cd backend
-   # Comando para ejecutar, por ejemplo: npm start o python app.py
+   npm run start:dev
    ```
 
-2. Para ejecutar el frontend:
+2. Para ejecutar el frontend (Next.js):
    ```
    cd frontend
-   # Comando para ejecutar, por ejemplo: npm start
+   npm run dev
    ```
+
+Para desarrollo con Docker:
+```
+cd infra/docker
+docker-compose -f docker-compose.dev.yml up --build
+```
 
 ## Contribución
 
