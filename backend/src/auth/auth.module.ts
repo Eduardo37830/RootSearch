@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './services/auth.service';
 import { DatabaseSeeder } from './services/database-seeder.service';
 import { AuthController } from './auth.controller';
@@ -16,9 +17,15 @@ import { Permission, PermissionSchema } from './schemas/permission.schema';
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key-change-this',
-      signOptions: { expiresIn: '1d' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret:
+          configService.get<string>('JWT_SECRET') ||
+          'your-super-secret-jwt-key',
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
     }),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
