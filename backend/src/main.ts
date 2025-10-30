@@ -26,6 +26,8 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .addTag('auth', 'Endpoints de autenticación y autorización')
+    .addTag('users', 'Gestión de usuarios (Docentes y Estudiantes)')
+    .addTag('courses', 'Gestión de cursos y matrícula de estudiantes')
     .addBearerAuth(
       {
         type: 'http',

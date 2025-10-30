@@ -17,7 +17,8 @@ export class DatabaseSeeder implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.seedDatabase();
+    // Seeder deshabilitado - Descomentar para ejecutar
+    // await this.seedDatabase();
   }
 
   private async seedDatabase() {

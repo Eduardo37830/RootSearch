@@ -19,12 +19,21 @@ import { Permission, PermissionSchema } from './schemas/permission.schema';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret:
-          configService.get<string>('JWT_SECRET') ||
-          'your-super-secret-jwt-key',
-        signOptions: { expiresIn: '1d' },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const jwtSecret = configService.get<string>('JWT_SECRET');
+
+        if (!jwtSecret) {
+          throw new Error(
+            'JWT_SECRET is not defined in environment variables. ' +
+              'Please set JWT_SECRET in your .env file before starting the application.',
+          );
+        }
+
+        return {
+          secret: jwtSecret,
+          signOptions: { expiresIn: '1d' },
+        };
+      },
       inject: [ConfigService],
     }),
     MongooseModule.forFeature([
