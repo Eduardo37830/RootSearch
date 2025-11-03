@@ -17,6 +17,9 @@ import {
 import { AuthService } from './services/auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyCodeDto } from './dto/verify-code.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
@@ -31,23 +34,36 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Iniciar sesión' })
+  @ApiOperation({ summary: 'Iniciar sesión - Envía código de verificación por email' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: 200,
-    description: 'Login exitoso. Retorna token JWT y datos del usuario.',
+    description: 'Código de verificación enviado al correo electrónico.',
   })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
+  @Post('verify-code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verificar código y obtener token JWT' })
+  @ApiBody({ type: VerifyCodeDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Código verificado. Retorna token JWT y datos del usuario.',
+  })
+  @ApiResponse({ status: 401, description: 'Código inválido o expirado' })
+  async verifyCode(@Body() verifyCodeDto: VerifyCodeDto) {
+    return this.authService.verifyCode(verifyCodeDto.email, verifyCodeDto.code);
+  }
+
   @Post('register')
-  @ApiOperation({ summary: 'Registrar nuevo usuario' })
+  @ApiOperation({ summary: 'Registrar nuevo usuario - Envía código de verificación por email' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
     status: 201,
-    description: 'Usuario registrado exitosamente con rol de estudiante.',
+    description: 'Usuario registrado exitosamente. Código de verificación enviado al correo electrónico.',
   })
   @ApiResponse({ status: 409, description: 'El email ya está registrado' })
   async register(@Body() registerDto: RegisterDto) {
@@ -65,6 +81,35 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'No autenticado' })
   async getProfile(@CurrentUser() user: any) {
     return this.authService.getProfile(user.id);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Solicitar recuperación de contraseña' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Email de recuperación enviado si el correo existe.',
+  })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Restablecer contraseña con token' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Contraseña actualizada exitosamente.',
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido o expirado' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+      resetPasswordDto.confirmPassword,
+    );
   }
 
   // Ejemplo: Solo administradores
