@@ -18,6 +18,12 @@ export class User {
   @Prop()
   verifyCodeExpiration: Date;
 
+  @Prop()
+  resetPasswordToken: string;
+
+  @Prop()
+  resetPasswordExpiration: Date;
+
   @Prop({ required: true })
   password: string;
 
@@ -30,3 +36,4 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // Índices para mejorar rendimiento
 UserSchema.index({ email: 1 });
 UserSchema.index({ verifyCode: 1 });
+UserSchema.index({ resetPasswordToken: 1 });
