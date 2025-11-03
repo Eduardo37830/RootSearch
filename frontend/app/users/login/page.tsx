@@ -50,9 +50,9 @@ export default function LoginPage() {
                 } else {
                   setToast({ show: true, message: "Login exitoso", type: "success" });
                   setTimeout(() => {
-                    router.push("/dashboard");
-                  }, 800);       
-                  }
+                    router.push(`/users/verify?email=${encodeURIComponent(email)}`);
+                  }, 800);
+                }
               } catch (err) {
                 setToast({ show: true, message: "Error al iniciar sesión", type: "error" });
               }

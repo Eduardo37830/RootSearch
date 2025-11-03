@@ -57,7 +57,7 @@ export default function RegisterPage() {
                 } else {
                   setToast({ show: true, message: "Registro exitoso", type: "success" });
                   setTimeout(() => {
-                    router.push("/users/login");
+                    router.push(`/users/verify?email=${encodeURIComponent(email)}`);
                   }, 800);
                 }
               } catch (err) {
