@@ -47,10 +47,8 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Generar código de verificación
     const verifyCode = await this.generateVerifyCode(user._id.toString());
 
-    // Enviar código por correo electrónico
     try {
       await this.emailService.sendVerificationCode(
         user.email,
@@ -59,12 +57,7 @@ export class AuthService {
       );
     } catch (error) {
       console.error('Error al enviar email:', error);
-      // No lanzamos error aquí para no bloquear el login
-      // pero podrías manejarlo de otra forma según tus necesidades
     }
-
-    // No devolvemos el token JWT todavía
-    // El usuario debe verificar el código primero
     return {
       message: 'Código de verificación enviado a tu correo electrónico',
       email: user.email,
@@ -73,7 +66,6 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    // Verificar si el usuario ya existe
     const existingUser = await this.userModel.findOne({
       email: registerDto.email,
     });
@@ -82,12 +74,10 @@ export class AuthService {
       throw new ConflictException('El email ya está registrado');
     }
 
-    // Buscar el rol "estudiante" por defecto
     let estudianteRole = await this.roleModel
       .findOne({ name: 'estudiante' })
       .exec();
 
-    // Si no existe, crear el rol básico de estudiante
     if (!estudianteRole) {
       estudianteRole = await this.roleModel.create({
         name: 'estudiante',
@@ -96,10 +86,8 @@ export class AuthService {
       });
     }
 
-    // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    // Crear el usuario
     const newUser = await this.userModel.create({
       name: registerDto.name,
       email: registerDto.email,
@@ -107,10 +95,8 @@ export class AuthService {
       roles: [estudianteRole._id],
     });
 
-    // Generar código de verificación
     const verifyCode = await this.generateVerifyCode((newUser._id as any).toString());
 
-    // Enviar email de bienvenida con código de verificación
     try {
       await this.emailService.sendWelcomeEmail(
         newUser.email,
@@ -119,10 +105,8 @@ export class AuthService {
       );
     } catch (error) {
       console.error('Error al enviar email de bienvenida:', error);
-      // No lanzamos error para no bloquear el registro
     }
 
-    // No devolvemos el password ni información sensible
     return {
       message: 'Usuario registrado exitosamente. Código de verificación enviado a tu correo electrónico.',
       email: newUser.email,
@@ -167,8 +151,8 @@ export class AuthService {
   }
 
   async generateVerifyCode(userId: string): Promise<number> {
-    const verifyCode = Math.floor(100000 + Math.random() * 900000); // 6 dígitos
-    const verifyCodeExpiration = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+    const verifyCode = Math.floor(100000 + Math.random() * 900000); 
+    const verifyCodeExpiration = new Date(Date.now() + 15 * 60 * 1000);
 
     await this.userModel.findByIdAndUpdate(userId, {
       verifyCode,
@@ -201,12 +185,10 @@ export class AuthService {
       throw new UnauthorizedException('Código de verificación expirado');
     }
 
-    // Limpiar el código después de verificarlo
     await this.userModel.findByIdAndUpdate(user._id, {
       $unset: { verifyCode: '', verifyCodeExpiration: '' },
     });
 
-    // Ahora sí generar el token JWT
     const roles = user.roles.map((role: any) => role.name);
     const permissions = user.roles.flatMap((role: any) =>
       role.permissions.map((perm: any) => ({
@@ -239,5 +221,86 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado');
     }
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.userModel.findOne({ email });
+
+    if (!user) {
+      return {
+        message: 'Si el correo existe, recibirás un enlace de recuperación',
+      };
+    }
+
+    const resetToken = this.jwtService.sign(
+      { 
+        userId: user._id,
+        email: user.email,
+        type: 'password-reset'
+      },
+      { expiresIn: '1h' } 
+    );
+
+    const resetPasswordExpiration = new Date(Date.now() + 60 * 60 * 1000); 
+    await this.userModel.findByIdAndUpdate(user._id, {
+      resetPasswordToken: resetToken,
+      resetPasswordExpiration: resetPasswordExpiration,
+    });
+
+    try {
+      await this.emailService.sendPasswordResetEmail(
+        user.email,
+        resetToken,
+        user.name,
+      );
+    } catch (error) {
+      console.error('Error al enviar email de recuperación:', error);
+      throw new Error('Error al enviar el correo de recuperación');
+    }
+
+    return {
+      message: 'Se ha enviado un enlace de recuperación a tu correo electrónico',
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string, confirmPassword: string) {
+    if (newPassword !== confirmPassword) {
+      throw new UnauthorizedException('Las contraseñas no coinciden');
+    }
+
+    let decoded;
+    try {
+      decoded = this.jwtService.verify(token);
+    } catch (error) {
+      throw new UnauthorizedException('Token inválido o expirado');
+    }
+
+    if (decoded.type !== 'password-reset') {
+      throw new UnauthorizedException('Token inválido');
+    }
+
+    const user = await this.userModel.findOne({
+      _id: decoded.userId,
+      resetPasswordToken: token,
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Token inválido o ya utilizado');
+    }
+
+    if (user.resetPasswordExpiration && user.resetPasswordExpiration < new Date()) {
+      throw new UnauthorizedException('Token expirado');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.userModel.findByIdAndUpdate(user._id, {
+      password: hashedPassword,
+      $unset: { resetPasswordToken: '', resetPasswordExpiration: '' },
+    });
+
+    return {
+      message: 'Contraseña actualizada exitosamente',
+    };
   }
 }
