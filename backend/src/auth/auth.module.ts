@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { UserOwnershipGuard } from './guards/user-ownership.guard';
 import { User, UserSchema } from './schemas/user.schema';
 import { Role, RoleSchema } from './schemas/role.schema';
 import { Permission, PermissionSchema } from './schemas/permission.schema';
@@ -52,12 +53,14 @@ import { Permission, PermissionSchema } from './schemas/permission.schema';
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,
+    UserOwnershipGuard,
   ],
   exports: [
     AuthService,
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,
+    UserOwnershipGuard,
     MongooseModule,
   ],
 })

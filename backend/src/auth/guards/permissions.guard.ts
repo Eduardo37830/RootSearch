@@ -22,7 +22,6 @@ export class PermissionsGuard implements CanActivate {
       return false;
     }
 
-    // Verificar que el usuario tenga todos los permisos requeridos
     return requiredPermissions.every((permission) =>
       user.permissions?.some((p: any) => p.name === permission),
     );
