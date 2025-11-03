@@ -17,7 +17,15 @@ export async function loginUser({ email, password }) {
     const errorText = await res.text();
     return { error: errorText || "Error al iniciar sesión" };
   }
-  return res.json();
+
+  const data = await res.json();
+
+  // Guardar el token en localStorage
+  if (data.access_token) {
+    localStorage.setItem("access_token", data.access_token);
+  }
+
+  return data;
 }
 
 export async function registerUser({ name, email, password }) {
@@ -35,5 +43,26 @@ export async function registerUser({ name, email, password }) {
     const errorText = await res.text();
     return { error: errorText || "Error al registrar usuario" };
   }
+  return res.json();
+}
+
+export async function getUserProfile() {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("No se encontró un token de acceso. Por favor, inicia sesión.");
+  }
+
+  const res = await fetch(`${API_URL}/auth/profile`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Error al obtener el perfil del usuario");
+  }
+
   return res.json();
 }
