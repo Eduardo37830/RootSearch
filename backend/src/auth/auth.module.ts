@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './services/auth.service';
+import { EmailService } from './services/email.service';
 import { DatabaseSeeder } from './services/database-seeder.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -45,6 +46,7 @@ import { Permission, PermissionSchema } from './schemas/permission.schema';
   controllers: [AuthController],
   providers: [
     AuthService,
+    EmailService,
     DatabaseSeeder,
     JwtStrategy,
     JwtAuthGuard,

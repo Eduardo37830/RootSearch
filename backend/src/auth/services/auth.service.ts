@@ -11,6 +11,7 @@ import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { User, UserDocument } from '../schemas/user.schema';
 import { Role, RoleDocument } from '../schemas/role.schema';
+import { EmailService } from './email.service';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +19,7 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -45,31 +47,28 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Extraer roles y permisos
-    const roles = user.roles.map((role: any) => role.name);
-    const permissions = user.roles.flatMap((role: any) =>
-      role.permissions.map((perm: any) => ({
-        name: perm.name,
-        method: perm.method,
-      })),
-    );
+    // Generar código de verificación
+    const verifyCode = await this.generateVerifyCode(user._id.toString());
 
-    const payload = {
-      email: user.email,
-      sub: user._id.toString(),
-      name: user.name,
-      roles: roles,
-      permissions: permissions,
-    };
+    // Enviar código por correo electrónico
+    try {
+      await this.emailService.sendVerificationCode(
+        user.email,
+        verifyCode,
+        user.name,
+      );
+    } catch (error) {
+      console.error('Error al enviar email:', error);
+      // No lanzamos error aquí para no bloquear el login
+      // pero podrías manejarlo de otra forma según tus necesidades
+    }
 
+    // No devolvemos el token JWT todavía
+    // El usuario debe verificar el código primero
     return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        roles: roles,
-      },
+      message: 'Código de verificación enviado a tu correo electrónico',
+      email: user.email,
+      requiresVerification: true,
     };
   }
 
@@ -108,8 +107,28 @@ export class AuthService {
       roles: [estudianteRole._id],
     });
 
-    const { password, ...result } = newUser.toObject();
-    return result;
+    // Generar código de verificación
+    const verifyCode = await this.generateVerifyCode((newUser._id as any).toString());
+
+    // Enviar email de bienvenida con código de verificación
+    try {
+      await this.emailService.sendWelcomeEmail(
+        newUser.email,
+        verifyCode,
+        newUser.name,
+      );
+    } catch (error) {
+      console.error('Error al enviar email de bienvenida:', error);
+      // No lanzamos error para no bloquear el registro
+    }
+
+    // No devolvemos el password ni información sensible
+    return {
+      message: 'Usuario registrado exitosamente. Código de verificación enviado a tu correo electrónico.',
+      email: newUser.email,
+      name: newUser.name,
+      requiresVerification: true,
+    };
   }
 
   async getProfile(userId: string) {
@@ -159,8 +178,16 @@ export class AuthService {
     return verifyCode;
   }
 
-  async verifyCode(email: string, code: number): Promise<boolean> {
-    const user = await this.userModel.findOne({ email });
+  async verifyCode(email: string, code: number) {
+    const user = await this.userModel
+      .findOne({ email })
+      .populate({
+        path: 'roles',
+        populate: {
+          path: 'permissions',
+        },
+      })
+      .exec();
 
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado');
@@ -179,6 +206,38 @@ export class AuthService {
       $unset: { verifyCode: '', verifyCodeExpiration: '' },
     });
 
-    return true;
+    // Ahora sí generar el token JWT
+    const roles = user.roles.map((role: any) => role.name);
+    const permissions = user.roles.flatMap((role: any) =>
+      role.permissions.map((perm: any) => ({
+        name: perm.name,
+        method: perm.method,
+      })),
+    );
+
+    const payload = {
+      email: user.email,
+      name: user.name,
+      roles: roles,
+      permissions: permissions,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        roles: roles,
+      },
+    };
+  }
+
+  async sendVerificationCode(email: string, code: number) {
+    const user = await this.userModel.findOne({ email });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
   }
 }
