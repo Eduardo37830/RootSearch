@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,10 +24,13 @@ import { EnrollStudentsDto } from './dto/enroll-students.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../auth/schemas/user.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('courses')
 @ApiBearerAuth('JWT-auth')
 @Controller('courses')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 

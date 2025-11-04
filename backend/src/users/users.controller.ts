@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,10 +21,13 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('users')
 @ApiBearerAuth('JWT-auth')
 @Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN') // Solo los administradores pueden acceder a estos endpoints
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
