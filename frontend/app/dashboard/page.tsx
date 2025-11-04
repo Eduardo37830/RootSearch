@@ -42,7 +42,7 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#181828] text-white">
+      <div className="flex items-center justify-center min-h-screen bg-[#101434] text-white">
         <div className="text-center">
           <h1 className="text-2xl font-semibold mb-2">⚠️ Acceso Denegado</h1>
           <p className="text-zinc-300">{error}</p>
@@ -58,7 +58,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-[#181828] text-black">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#040418] text-black">
       <SideBar user={user!} />
 
       <main className="flex-1 flex flex-col gap-4 p-6">
@@ -75,16 +75,16 @@ export default function Dashboard() {
                   ))}
                 </ul>
               </div>
-              <div className="w-full lg:w-1/3 bg-[#B4AEF6] rounded-lg shadow p-6">
+              <div className="w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 text-black">Cursos</h2>
                 <p className="text-sm text-black/90">
                   Aquí se muestra la cantidad de cursos.
                 </p>
               </div>
             </div>
-            <div className="w-full bg-[#B4AEF6] rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 text-black">Notificaciones</h2>
-              <p className="text-sm text-black/90">
+            <div className="w-full bg-[#101434] rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4 text-white">Notificaciones</h2>
+              <p className="text-sm text-white/90">
                 Aquí se muestra la cantidad de notificaciones.
               </p>
             </div>
@@ -92,22 +92,22 @@ export default function Dashboard() {
         ) : (
           <>
             <div className="flex flex-col lg:flex-row flex-1 gap-4">
-              <div className="flex-1 bg-[#B4AEF6] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-black">Material de Clase</h2>
-                <p className="text-sm text-black/90">
+              <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold mb-4 text-white">Material de Clase</h2>
+                <p className="text-sm text-white/90">
                   Aquí se muestra el material de clase dejado.
                 </p>
               </div>
-              <div className="w-full lg:w-1/3 bg-[#B4AEF6] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-black">Cursos</h2>
-                <p className="text-sm text-black/90">
+              <div className="w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
+                <p className="text-sm text-white/90">
                   Aquí se muestra la cantidad de cursos.
                 </p>
               </div>
             </div>
-            <div className="w-full bg-[#B4AEF6] rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 text-black">Notificaciones</h2>
-              <p className="text-sm text-black/90">
+            <div className="w-full bg-[#101434] rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4 text-white">Notificaciones</h2>
+              <p className="text-sm text-white/90">
                 Aquí se muestra la cantidad de notificaciones.
               </p>
             </div>

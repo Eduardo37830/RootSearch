@@ -33,7 +33,7 @@ export default function SideBar({ user }: SideBarProps) {
       <aside
         className={`${
           isMinimized ? "w-16" : "w-48"
-        } h-70vh bg-[#6356E5] text-white flex flex-col py-4 shadow-lg transition-all duration-300 fixed lg:relative z-40 lg:z-auto mb-2 mt-2 ml-2 rounded-lg ${
+        } h-70vh bg-[#4040ac] text-white flex flex-col py-4 shadow-lg transition-all duration-300 fixed lg:relative z-40 lg:z-auto mb-2 mt-2 ml-2 rounded-lg ${
           isMobileMenuOpen ? "block" : "hidden lg:flex"
         }`}
       >
@@ -55,13 +55,13 @@ export default function SideBar({ user }: SideBarProps) {
 
         {/* Menú principal */}
         <nav
-          className={`flex flex-col gap-4 w-full transition-all duration-300 ${
+          className={`flex flex-col gap-2 w-full transition-all duration-300 ${
             isMinimized ? "items-center px-0" : "px-4"
           }`}
         >
-          <div className="mb-4">
+          <div className="mb-2">
             <h2
-              className={`text-xs font-bold text-black mb-2 ${
+              className={`text-l font-bold text-white mb-1 ${
                 isMinimized ? "hidden" : "block"
               }`}
             >
@@ -69,41 +69,59 @@ export default function SideBar({ user }: SideBarProps) {
             </h2>
             <a
               href="/dashboard"
-              className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
-              <span>📊</span>
+              <img
+                src="/assets/iconos/dashboard.png"
+                alt="Dashboard Icon"
+                className="w-4 h-4"
+              />
               {!isMinimized && "Dashboard"}
             </a>
             {user?.role === "teacher" ? (
               <a
                 href="/reports"
-                className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
               >
-                <span>📋</span>
+                <img
+                  src="/assets/iconos/report.png"
+                  alt="Reports Icon"
+                  className="w-4 h-4"
+                />
                 {!isMinimized && "Reports"}
               </a>
             ) : (
               <a
                 href="/homeworks"
-                className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
               >
-                <span>📚</span>
+                <img
+                  src="/assets/iconos/homework.png"
+                  alt="Homeworks Icon"
+                  className="w-4 h-4"
+                />
                 {!isMinimized && "HomeWorks"}
               </a>
             )}
             <a
               href="/courses"
-              className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
-              <span>✏️</span>
+              <img
+                src="/assets/iconos/cursos.png"
+                alt="Courses Icon"
+                className="w-4 h-4"
+              />
               {!isMinimized && "Courses"}
             </a>
           </div>
 
+          <div className="border-t border-white my-1"></div>
+
           {/* General */}
-          <div className="mb-4">
+          <div className="mb-2">
             <h2
-              className={`text-xs font-bold text-black mb-2 ${
+              className={`text-l font-bold text-white mb-1 ${
                 isMinimized ? "hidden" : "block"
               }`}
             >
@@ -111,24 +129,34 @@ export default function SideBar({ user }: SideBarProps) {
             </h2>
             <a
               href="/notifications"
-              className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
-              <span>🔔</span>
+              <img
+                src="/assets/iconos/ojo_abierto.png"
+                alt="Notifications Icon"
+                className="w-4 h-4"
+              />
               {!isMinimized && "Notifications"}
             </a>
             <a
               href="/reports"
-              className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
-              <span>📋</span>
+              <img
+                src="/assets/iconos/report.png"
+                alt="Reports Icon"
+                className="w-4 h-4"
+              />
               {!isMinimized && "Reports"}
             </a>
           </div>
 
+          <div className="border-t border-white my-1"></div>
+
           {/* Cuenta */}
-          <div className="mb-4">
+          <div className="mb-2">
             <h2
-              className={`text-xs font-bold text-black mb-2 ${
+              className={`text-l font-bold text-white mb-1 ${
                 isMinimized ? "hidden" : "block"
               }`}
             >
@@ -136,14 +164,18 @@ export default function SideBar({ user }: SideBarProps) {
             </h2>
             <a
               href="/settings"
-              className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
-              <span>⚙️</span>
+              <img
+                src="/assets/iconos/setting.png"
+                alt="Settings Icon"
+                className="w-4 h-4"
+              />
               {!isMinimized && "Settings"}
             </a>
             <a
               href="/"
-              className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
               onClick={() => {
                 localStorage.removeItem("access_token");
               }}
@@ -151,7 +183,7 @@ export default function SideBar({ user }: SideBarProps) {
               <img
                 src="/assets/iconos/logout.png"
                 alt="Logout Icon"
-                className="w-4 h-4 ml-1"
+                className="w-4 h-4 ml-0.5"
               />
               {!isMinimized && "Logout"}
             </a>
@@ -186,7 +218,7 @@ export default function SideBar({ user }: SideBarProps) {
             absolute top-1/2 right-[-12px] transform -translate-y-1/2
             flex items-center justify-center
             w-5 h-5 rounded-md
-            bg-[#6356E5] text-white
+            bg-[#4040ac] text-white
             hover:scale-110 hover:brightness-110 transition-all duration-300
             lg:block hidden
           `}
