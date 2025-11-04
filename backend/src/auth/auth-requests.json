@@ -1,0 +1,73 @@
+{
+  "requests": [
+    {
+      "name": "Register User",
+      "method": "POST",
+      "url": "http://localhost:3000/auth/register",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "test@example.com",
+        "password": "password123",
+        "name": "Test User"
+      }
+    },
+    {
+      "name": "Login Admin",
+      "method": "POST",
+      "url": "http://localhost:3000/auth/login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "admin@example.com",
+        "password": "admin123"
+      }
+    },
+    {
+      "name": "Login User",
+      "method": "POST",
+      "url": "http://localhost:3000/auth/login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "user@example.com",
+        "password": "admin123"
+      }
+    },
+    {
+      "name": "Get Profile (Protected)",
+      "method": "GET",
+      "url": "http://localhost:3000/auth/profile",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    },
+    {
+      "name": "Admin Only (Requires ADMIN role)",
+      "method": "GET",
+      "url": "http://localhost:3000/auth/admin-only",
+      "headers": {
+        "Authorization": "Bearer YOUR_ADMIN_TOKEN_HERE"
+      }
+    },
+    {
+      "name": "Delete Permission (Requires permission)",
+      "method": "GET",
+      "url": "http://localhost:3000/auth/delete-permission",
+      "headers": {
+        "Authorization": "Bearer YOUR_ADMIN_TOKEN_HERE"
+      }
+    },
+    {
+      "name": "Admin with Permission",
+      "method": "GET",
+      "url": "http://localhost:3000/auth/admin-with-permission",
+      "headers": {
+        "Authorization": "Bearer YOUR_ADMIN_TOKEN_HERE"
+      }
+    }
+  ]
+}
