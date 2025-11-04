@@ -98,6 +98,38 @@ export default function SideBar({ user }: SideBarProps) {
               <span>✏️</span>
               {!isMinimized && "Courses"}
             </a>
+            {user?.role === "admin" && (
+              <>
+                <a
+                  href="/admin/courses"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                >
+                  <span>📚</span>
+                  {!isMinimized && "Courses"}
+                </a>
+                <a
+                  href="/admin/users"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                >
+                  <span>👥</span>
+                  {!isMinimized && "Users"}
+                </a>
+                <a
+                  href="/admin/students"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                >
+                  <span>🎓</span>
+                  {!isMinimized && "Students (list)"}
+                </a>
+                <a
+                  href="/admin/teachers"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                >
+                  <span>👩‍🏫</span>
+                  {!isMinimized && "Teachers (list)"}
+                </a>
+              </>
+            )}
           </div>
 
           {/* General */}
