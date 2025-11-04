@@ -57,7 +57,7 @@ export default function RegisterPage() {
                 } else {
                   setToast({ show: true, message: "Registro exitoso", type: "success" });
                   setTimeout(() => {
-                    router.push("/");
+                    router.push(`/users/verify?email=${encodeURIComponent(email)}`);
                   }, 800);
                 }
               } catch (err) {
@@ -117,7 +117,11 @@ export default function RegisterPage() {
                   onClick={() => setShowPassword((prev) => !prev)}
                   title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
-                  {showPassword ? "👁️" : "🙈"}
+                  <img
+                    src={showPassword ? "/assets/iconos/ojo_abierto.png" : "/assets/iconos/ojo_cerrado.png"}
+                    alt={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    className="w-5 h-5"
+                  />
                 </span>
               </div>
             </div>
@@ -140,7 +144,11 @@ export default function RegisterPage() {
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
                   title={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
-                  {showConfirmPassword ? "👁️" : "🙈"}
+                  <img
+                    src={showConfirmPassword ? "/assets/iconos/ojo_abierto.png" : "/assets/iconos/ojo_cerrado.png"}
+                    alt={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    className="w-5 h-5"
+                  />
                 </span>
               </div>
             </div>

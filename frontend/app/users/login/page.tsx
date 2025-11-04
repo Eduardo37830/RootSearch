@@ -50,9 +50,9 @@ export default function LoginPage() {
                 } else {
                   setToast({ show: true, message: "Login exitoso", type: "success" });
                   setTimeout(() => {
-                    router.push("/");
-                  }, 800);       
-                  }
+                    router.push(`/users/verify?email=${encodeURIComponent(email)}`);
+                  }, 800);
+                }
               } catch (err) {
                 setToast({ show: true, message: "Error al iniciar sesión", type: "error" });
               }
@@ -94,7 +94,11 @@ export default function LoginPage() {
                   onClick={() => setShowPassword((prev) => !prev)}
                   title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
-                  {showPassword ? "👁️" : "🙈"}
+                  <img
+                    src={showPassword ? "/assets/iconos/ojo_abierto.png" : "/assets/iconos/ojo_cerrado.png"}
+                    alt={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    className="w-5 h-5"
+                  />
                 </span>
               </div>
             </div>
