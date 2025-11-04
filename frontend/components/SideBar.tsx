@@ -41,7 +41,7 @@ export default function SideBar({ user }: SideBarProps) {
         <div
           className={`flex items-center ${
             isMinimized ? "justify-center" : "justify-start px-4"
-          } mb-6`}
+          } mb-2`}
         >
           <img
             src="/assets/black_logo.png"
@@ -53,13 +53,15 @@ export default function SideBar({ user }: SideBarProps) {
           {!isMinimized && <h1 className="text-md font-bold">RootSearch</h1>}
         </div>
 
+        <div className="border-t border-white my-4"></div>
+
         {/* Menú principal */}
         <nav
-          className={`flex flex-col gap-2 w-full transition-all duration-300 ${
+          className={`flex flex-col gap-6 w-full transition-all duration-300 ${
             isMinimized ? "items-center px-0" : "px-4"
           }`}
         >
-          <div className="mb-2">
+          <div className="mb-0">
             <h2
               className={`text-l font-bold text-white mb-1 ${
                 isMinimized ? "hidden" : "block"
@@ -78,17 +80,17 @@ export default function SideBar({ user }: SideBarProps) {
               />
               {!isMinimized && "Dashboard"}
             </a>
-            {user?.role === "teacher" ? (
+            {user?.role === "profesor" || user?.role === "administrador" ? (
               <a
-                href="/reports"
+                href="/students"
                 className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
               >
                 <img
-                  src="/assets/iconos/report.png"
-                  alt="Reports Icon"
+                  src="/assets/iconos/students.png"
+                  alt="Students Icon"
                   className="w-4 h-4"
                 />
-                {!isMinimized && "Reports"}
+                {!isMinimized && "Students"}
               </a>
             ) : (
               <a
@@ -104,7 +106,7 @@ export default function SideBar({ user }: SideBarProps) {
               </a>
             )}
             <a
-              href="/courses"
+              href={user?.role === "profesor" || user?.role === "administrador" ? "/courses/create" : "/courses"}
               className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
               <img
@@ -116,10 +118,10 @@ export default function SideBar({ user }: SideBarProps) {
             </a>
           </div>
 
-          <div className="border-t border-white my-1"></div>
+          <div className={`border-t border-white ${isMinimized ? "my-4" : "my-1"}`}></div>
 
           {/* General */}
-          <div className="mb-2">
+          <div className="mb-0">
             <h2
               className={`text-l font-bold text-white mb-1 ${
                 isMinimized ? "hidden" : "block"
@@ -151,10 +153,10 @@ export default function SideBar({ user }: SideBarProps) {
             </a>
           </div>
 
-          <div className="border-t border-white my-1"></div>
+          <div className={`border-t border-white ${isMinimized ? "my-4" : "my-1"}`}></div>
 
           {/* Cuenta */}
-          <div className="mb-2">
+          <div className="mb-4">
             <h2
               className={`text-l font-bold text-white mb-1 ${
                 isMinimized ? "hidden" : "block"
@@ -192,7 +194,7 @@ export default function SideBar({ user }: SideBarProps) {
 
         {/* Información del usuario */}
         <div
-          className={`mt-auto w-full flex items-center gap-4 px-4 py-4 border-t border-black ${
+          className={`mt-auto w-full flex items-center gap-4 px-4 py-4 border-t border-white ${
             isMinimized ? "justify-center" : "justify-start"
           }`}
         >
@@ -204,7 +206,7 @@ export default function SideBar({ user }: SideBarProps) {
           {!isMinimized && (
             <div>
               <p className="text-xs font-bold">{user?.name || "Name User"}</p>
-              <p className="text-xs text-black/90">
+              <p className="text-xs text-grey-200 mt-1">
                 {user?.role ? formatRole(user.role) : "Role"}
               </p>
             </div>
@@ -213,7 +215,11 @@ export default function SideBar({ user }: SideBarProps) {
 
         {/* Botón de expandir/contraer */}
         <button
-          onClick={() => setIsMinimized(!isMinimized)}
+          onClick={() => {
+            if (window.innerWidth >= 1024) {
+              setIsMinimized(!isMinimized);
+            }
+          }}
           className={`
             absolute top-1/2 right-[-12px] transform -translate-y-1/2
             flex items-center justify-center
