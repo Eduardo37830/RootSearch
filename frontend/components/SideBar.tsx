@@ -21,7 +21,9 @@ export default function SideBar({ user }: SideBarProps) {
     <>
       {/* Botón de hamburguesa para móvil */}
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 bg-[#050214] text-white p-2 rounded-md"
+        className={`lg:hidden fixed top-4 right-4 z-50 bg-[#867CED] text-white p-2 rounded-md transition-all duration-300 ${
+          isMobileMenuOpen ? "top-1/2 transform -translate-y-1/2" : "top-4"
+        }`}
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       >
         ☰

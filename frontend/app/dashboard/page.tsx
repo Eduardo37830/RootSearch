@@ -58,14 +58,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#181828] text-black">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#181828] text-black">
       <SideBar user={user!} />
 
       <main className="flex-1 flex flex-col gap-4 p-6">
         {user?.role.toLowerCase() === "profesor" ? (
           <>
-            <div className="flex flex-1 gap-4">
-              <div className="flex-1 bg-[#7F82C9] rounded-lg shadow p-6">
+            <div className="flex flex-col lg:flex-row flex-1 gap-4">
+              <div className="flex-1 bg-[#B4AEF6] rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 text-black">Lista de Estudiantes</h2>
                 <ul className="text-sm text-black/90">
                   {students.map((student: any) => (
@@ -75,14 +75,14 @@ export default function Dashboard() {
                   ))}
                 </ul>
               </div>
-              <div className="w-1/3 bg-[#7F82C9] rounded-lg shadow p-6">
+              <div className="w-full lg:w-1/3 bg-[#B4AEF6] rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 text-black">Cursos</h2>
                 <p className="text-sm text-black/90">
                   Aquí se muestra la cantidad de cursos.
                 </p>
               </div>
             </div>
-            <div className="w-full bg-[#7F82C9] rounded-lg shadow p-6">
+            <div className="w-full bg-[#B4AEF6] rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold mb-4 text-black">Notificaciones</h2>
               <p className="text-sm text-black/90">
                 Aquí se muestra la cantidad de notificaciones.
@@ -91,21 +91,21 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            <div className="flex flex-1 gap-4">
-              <div className="flex-1 bg-[#7F82C9] rounded-lg shadow p-6">
+            <div className="flex flex-col lg:flex-row flex-1 gap-4">
+              <div className="flex-1 bg-[#B4AEF6] rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 text-black">Material de Clase</h2>
                 <p className="text-sm text-black/90">
                   Aquí se muestra el material de clase dejado.
                 </p>
               </div>
-              <div className="w-1/3 bg-[#8187F0] rounded-lg shadow p-6">
+              <div className="w-full lg:w-1/3 bg-[#B4AEF6] rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 text-black">Cursos</h2>
                 <p className="text-sm text-black/90">
                   Aquí se muestra la cantidad de cursos.
                 </p>
               </div>
             </div>
-            <div className="w-full bg-[#8C8EBF] rounded-lg shadow p-6">
+            <div className="w-full bg-[#B4AEF6] rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold mb-4 text-black">Notificaciones</h2>
               <p className="text-sm text-black/90">
                 Aquí se muestra la cantidad de notificaciones.
