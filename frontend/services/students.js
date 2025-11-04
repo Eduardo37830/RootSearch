@@ -10,3 +10,12 @@ export async function getAllStudents() {
     return [];
   }
 }
+export async function getAllTeachers() {
+  try {
+    const res = await fetch(`${API_URL}/users?role=profesor`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    return [];
+  }
+}

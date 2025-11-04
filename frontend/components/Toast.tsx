@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface ToastProps {
   message: string;
@@ -8,9 +8,12 @@ interface ToastProps {
 }
 
 export default function Toast({ message, type = "info", onClose }: ToastProps) {
+  const [toastClosing, setToastClosing] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onClose();
+      setToastClosing(true);
+      setTimeout(onClose, 500); // Match this duration with the CSS animation duration
     }, 3500);
     return () => clearTimeout(timer);
   }, [onClose]);
@@ -23,7 +26,10 @@ export default function Toast({ message, type = "info", onClose }: ToastProps) {
       : "bg-blue-600";
 
   return (
-    <div className={`fixed top-6 right-6 z-50 px-6 py-3 rounded-lg text-white shadow-lg ${color} animate-slide-in-right`}>
+    <div
+      className={`fixed top-6 right-6 z-50 px-6 py-3 rounded-lg text-white shadow-lg ${color} animate-slide-in-right`}
+      style={{ animation: toastClosing ? "slide-out-right 0.5s forwards" : undefined }}
+    >
       {message}
     </div>
   );
