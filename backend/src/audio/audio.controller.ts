@@ -3,12 +3,14 @@ import {
   Post,
   Get,
   Param,
+  Query,
   UseGuards,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
   InternalServerErrorException,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   FileInterceptor,
@@ -17,6 +19,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AudioService } from './audio.service';
+import { TranscriptionService } from '../transcription/transcription.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -30,13 +33,17 @@ import * as path from 'path';
 @Controller('audio')
 @UseGuards(JwtAuthGuard)
 export class AudioController {
-  constructor(private readonly audioService: AudioService) {}
+  constructor(
+    private readonly audioService: AudioService,
+    private readonly transcriptionService: TranscriptionService,
+  ) {}
 
   /**
    * Endpoint para transcribir un archivo de audio
    *
    * @route POST /audio/transcribe
    * @param file - Archivo de audio (multipart/form-data)
+   * @param courseId - ID del curso (form-data o query)
    * @param user - Usuario autenticado (inyectado por decorador)
    * @returns {
    *   success: boolean,
@@ -44,7 +51,8 @@ export class AudioController {
    *   language: string,
    *   fileName: string,
    *   processingTime: number (ms),
-   *   timestamp: ISO string
+   *   timestamp: ISO string,
+   *   courseId: string
    * }
    *
    * @example
@@ -52,16 +60,31 @@ export class AudioController {
    * Headers: Authorization: Bearer {jwt_token}
    * Body: form-data
    *   - audio: [file.mp3]
+   *   - courseId: 63f7a123... (ID del curso)
    *   - language: es (optional, default: es)
    */
   @Post('transcribe')
   @UseInterceptors(FileInterceptor('audio'))
-  async transcribeAudio(@UploadedFile() file: any, @CurrentUser() user: any) {
+  async transcribeAudio(
+    @UploadedFile() file: any,
+    @CurrentUser() user: any,
+    @Query('courseId') courseId?: string,
+  ) {
     const startTime = Date.now();
 
     // Validación: archivo presente
     if (!file) {
       throw new BadRequestException('No se proporcionó archivo de audio');
+    }
+
+    // Validación: courseId presente
+    if (!courseId) {
+      if (file.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+      throw new BadRequestException(
+        'El ID del curso (courseId) es requerido. Envía ?courseId=... en la URL',
+      );
     }
 
     // Validación: tipos de archivo permitidos
@@ -118,6 +141,21 @@ export class AudioController {
         `✅ Transcripción exitosa para ${user.id}: ${transcription.substring(0, 50)}...`,
       );
 
+      // Guarda la transcripción en MongoDB
+      const savedTranscription = await this.transcriptionService.create({
+        userId: user.id,
+        courseId: courseId,
+        text: transcription,
+        originalFileName: file.originalname,
+        fileSize: file.size,
+        language: 'es',
+        processingTime,
+      });
+
+      console.log(
+        `💾 Transcripción guardada en MongoDB con ID: ${savedTranscription._id} para curso: ${courseId}`,
+      );
+
       return {
         success: true,
         transcription,
@@ -126,6 +164,8 @@ export class AudioController {
         fileSize: file.size,
         processingTime: `${processingTime}ms`,
         userId: user.id,
+        courseId: courseId,
+        transcriptionId: savedTranscription._id,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
@@ -159,91 +199,143 @@ export class AudioController {
   }
 
   /**
-   * Health check del servicio de transcripción
-   * Verifica la disponibilidad de los adaptadores
+   * Obtiene todas las transcripciones del usuario autenticado
    *
-   * @route GET /audio/health
-   * @returns {
-   *   status: 'ok' | 'degraded',
-   *   mode: 'LOCAL' | 'CLOUD',
-   *   local: { available: boolean, endpoint: string },
-   *   cloud: { available: boolean },
-   *   timestamp: ISO string
-   * }
+   * @route GET /audio/transcriptions
+   * @param skip - Número de registros a saltar (paginación)
+   * @param limit - Número de registros a retornar
+   * @returns Array de transcripciones con metadata
    */
-  @Get('health')
-  async healthCheck(@CurrentUser() user: any) {
-    const mode = process.env.TRANSCRIPTION_MODE || 'LOCAL';
-    const localEndpoint =
-      process.env.LOCAL_TRANSCRIPTION_ENDPOINT ||
-      'http://localhost:8000/api/transcribe';
+  @Get('transcriptions')
+  async getTranscriptions(
+    @CurrentUser() user: any,
+    @Query('skip') skip: string = '0',
+    @Query('limit') limit: string = '10',
+  ) {
+    const skipNum = parseInt(skip, 10) || 0;
+    const limitNum = parseInt(limit, 10) || 10;
 
-    console.log(`🏥 Health check de transcripción por usuario ${user.id}`);
+    try {
+      const result = await this.transcriptionService.findByUserId(
+        user.id,
+        skipNum,
+        limitNum,
+      );
 
-    const result = {
-      status: 'ok',
-      mode,
-      local: {
-        available: false,
-        endpoint: localEndpoint,
-      },
-      cloud: {
-        available: false,
-      },
-      timestamp: new Date().toISOString(),
-    };
+      console.log(
+        `📋 Obtenidas ${result.data.length} transcripciones del usuario ${user.id}`,
+      );
 
-    // Verifica disponibilidad del servidor local
-    if (mode === 'LOCAL') {
-      try {
-        const axios = require('axios');
-        const response = await axios.get(
-          `${localEndpoint.replace('/api/transcribe', '')}/health`,
-          {
-            timeout: 2000,
-          },
-        );
-        if (response.status === 200) {
-          result.local.available = true;
-        }
-      } catch (error) {
-        result.status = 'degraded';
-        result.local.available = false;
-        console.warn(`⚠️ Servidor local no disponible: ${localEndpoint}`);
-      }
+      return {
+        success: true,
+        data: result.data,
+        pagination: {
+          skip: result.skip,
+          limit: result.limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / result.limit),
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error(`❌ Error obteniendo transcripciones: ${error.message}`);
+      throw new InternalServerErrorException({
+        success: false,
+        error: 'Error al obtener transcripciones',
+        details:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
     }
-
-    // Verifica disponibilidad de OpenAI
-    if (mode === 'CLOUD') {
-      try {
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (apiKey && apiKey !== '') {
-          result.cloud.available = true;
-        } else {
-          result.status = 'degraded';
-          result.cloud.available = false;
-          console.warn('⚠️ OPENAI_API_KEY no configurada');
-        }
-      } catch (error) {
-        result.status = 'degraded';
-        result.cloud.available = false;
-      }
-    }
-
-    return result;
   }
 
   /**
-   * Endpoint de prueba simple para verificar el controlador
+   * Obtiene una transcripción específica por ID
    *
-   * @route GET /audio/test
-   * @returns { message: string, timestamp: ISO string }
+   * @route GET /audio/transcriptions/:id
+   * @param id - ID de la transcripción
+   * @returns Datos completos de la transcripción
    */
-  @Get('test')
-  async testEndpoint() {
-    return {
-      message: '🎤 AudioController funcionando correctamente',
-      timestamp: new Date().toISOString(),
-    };
+  @Get('transcriptions/:id')
+  async getTranscriptionById(@Param('id') id: string) {
+    try {
+      const transcription = await this.transcriptionService.findById(id);
+
+      if (!transcription) {
+        throw new NotFoundException('Transcripción no encontrada');
+      }
+
+      console.log(`📄 Transcripción obtenida: ${id}`);
+
+      return {
+        success: true,
+        data: transcription,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`❌ Error obteniendo transcripción: ${error.message}`);
+      throw new InternalServerErrorException({
+        success: false,
+        error: 'Error al obtener transcripción',
+        details:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+
+  /**
+   * Obtiene todas las transcripciones de un curso específico
+   *
+   * @route GET /audio/courses/:courseId/transcriptions
+   * @param courseId - ID del curso
+   * @param skip - Número de registros a saltar (paginación)
+   * @param limit - Número de registros a retornar
+   * @returns Array de transcripciones del curso
+   */
+  @Get('courses/:courseId/transcriptions')
+  async getCourseTranscriptions(
+    @Param('courseId') courseId: string,
+    @Query('skip') skip: string = '0',
+    @Query('limit') limit: string = '10',
+  ) {
+    const skipNum = parseInt(skip, 10) || 0;
+    const limitNum = parseInt(limit, 10) || 10;
+
+    try {
+      const result = await this.transcriptionService.findByCourseId(
+        courseId,
+        skipNum,
+        limitNum,
+      );
+
+      console.log(
+        `📋 Obtenidas ${result.data.length} transcripciones del curso ${courseId}`,
+      );
+
+      return {
+        success: true,
+        data: result.data,
+        courseId,
+        pagination: {
+          skip: result.skip,
+          limit: result.limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / result.limit),
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error(
+        `❌ Error obteniendo transcripciones del curso: ${error.message}`,
+      );
+      throw new InternalServerErrorException({
+        success: false,
+        error: 'Error al obtener transcripciones del curso',
+        details:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
   }
 }

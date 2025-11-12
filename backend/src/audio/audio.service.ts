@@ -3,6 +3,7 @@ import {
   TRANSCRIPTOR_SERVICE,
   ITranscriptor,
 } from '../transcription/transcription.interface';
+import { TranscriptionService } from '../transcription/transcription.service';
 import { ReadStream } from 'fs';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class AudioService {
   constructor(
     @Inject(TRANSCRIPTOR_SERVICE)
     private readonly transcriptor: ITranscriptor,
+    private readonly transcriptionService: TranscriptionService,
   ) {}
 
   /**
@@ -39,7 +41,7 @@ export class AudioService {
   }
 
   /**
-   * Procesa un archivo de audio: carga, transcribe y retorna el resultado
+   * Procesa un archivo de audio: carga, transcribe y guarda en MongoDB
    * Este es un ejemplo de cómo integrar la transcripción en tu flujo de negocio
    */
   async processAudioFile(
@@ -51,12 +53,24 @@ export class AudioService {
     try {
       const transcription = await this.transcribeAudio(audioInput, language);
 
-      // Aquí puedes procesar más el texto, guardar en BD, etc.
+      // Guarda la transcripción en MongoDB
+      const savedTranscription = await this.transcriptionService.create({
+        userId: metadata.userId,
+        courseId: metadata.courseId,
+        text: transcription,
+        originalFileName: metadata.fileName,
+        fileSize: metadata.fileSize,
+        language,
+        processingTime: metadata.processingTime,
+        metadata: metadata.metadata || {},
+      });
+
       return {
         success: true,
         transcription,
         metadata,
         timestamp: new Date(),
+        savedTranscriptionId: savedTranscription._id,
       };
     } catch (error) {
       return {
