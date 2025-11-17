@@ -221,4 +221,28 @@ export class CoursesController {
   remove(@Param('id') id: string) {
     return this.coursesService.remove(id);
   }
+
+  @Get('by-teacher/:teacherId')
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({
+    summary: 'Obtener cursos por ID del profesor',
+    description: 'Devuelve los cursos asociados a un profesor específico.',
+  })
+  @ApiParam({
+    name: 'teacherId',
+    required: true,
+    description: 'ID del profesor para filtrar los cursos',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de cursos obtenida exitosamente.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontraron cursos para el profesor dado.',
+  })
+  getCoursesByTeacher(@Param('teacherId') teacherId: string) {
+    return this.coursesService.findByTeacher(teacherId);
+  }
 }

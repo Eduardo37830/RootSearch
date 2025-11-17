@@ -3,11 +3,19 @@ import { useEffect, useState } from "react";
 import SideBar from "@/components/SideBar";
 import { getUserProfile } from "@/services/users";
 import { getAllStudents } from "@/services/students";
+import { getCoursesByTeacher } from "@/services/courses";
 import Toast from "@/components/Toast";
 
+type Course = {
+  _id: string;
+  name: string;
+  teacher: string | { _id: string; name?: string; email?: string };
+};
+
 export default function Dashboard() {
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);
   const [students, setStudents] = useState([]);
+  const [teacherCourses, setTeacherCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "error" } | null>(null);
@@ -24,7 +32,7 @@ export default function Dashboard() {
           return;
         }
 
-        setUser({ name: userData.name, role });
+        setUser({ id: userData.id, name: userData.name, role });
 
         if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
           const studentsData = await getAllStudents();
@@ -44,6 +52,23 @@ export default function Dashboard() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    async function fetchTeacherCourses() {
+      if (user?.role.toLowerCase() === "docente" && user.id) {
+        const courses: Course[] = await getCoursesByTeacher(user.id);
+        // Filtrar los cursos cuyo teacher sea igual al id del usuario actual
+        const filteredCourses = courses.filter(course => {
+          if (typeof course.teacher === 'object' && course.teacher._id) {
+            return course.teacher._id === user.id;
+          }
+          return course.teacher === user.id;
+        });
+        setTeacherCourses(filteredCourses);
+      }
+    }
+    fetchTeacherCourses();
+  }, [user]);
 
   if (loading) return <div className="text-white p-4">Cargando datos...</div>;
 
@@ -88,7 +113,15 @@ export default function Dashboard() {
               >
                 <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
                 <p className="text-sm text-white/90">
-                  Aquí se muestra la cantidad de cursos.
+                  {teacherCourses.length > 0 ? (
+                    <ul>
+                      {teacherCourses.map((course) => (
+                        <li key={course._id}>{course.name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "No tienes cursos asignados."
+                  )}
                 </p>
               </div>
             </div>
@@ -114,7 +147,6 @@ export default function Dashboard() {
               >
                 <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
                 <p className="text-sm text-white/90">
-                  Aquí se muestra la cantidad de cursos.
                 </p>
               </div>
             </div>
