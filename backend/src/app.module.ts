@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
 import { AudioModule } from './audio/audio.module';
+import { MaterialsModule } from './materials/materials.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AudioModule } from './audio/audio.module';
     UsersModule,
     CoursesModule,
     AudioModule,
+    MaterialsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

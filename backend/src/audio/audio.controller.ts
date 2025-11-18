@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Body,
   Param,
   Query,
   UseGuards,
@@ -68,9 +69,11 @@ export class AudioController {
   async transcribeAudio(
     @UploadedFile() file: any,
     @CurrentUser() user: any,
-    @Query('courseId') courseId?: string,
+    @Body() body: any,
+    @Query('courseId') queryCourseId?: string,
   ) {
     const startTime = Date.now();
+    const courseId = queryCourseId || body.courseId;
 
     // Validación: archivo presente
     if (!file) {
@@ -83,7 +86,7 @@ export class AudioController {
         fs.unlinkSync(file.path);
       }
       throw new BadRequestException(
-        'El ID del curso (courseId) es requerido. Envía ?courseId=... en la URL',
+        'El ID del curso (courseId) es requerido. Envíalo en el body o como query param ?courseId=...',
       );
     }
 

@@ -28,6 +28,7 @@ async function bootstrap() {
     .addTag('auth', 'Endpoints de autenticación y autorización')
     .addTag('users', 'Gestión de usuarios (Docentes y Estudiantes)')
     .addTag('courses', 'Gestión de cursos y matrícula de estudiantes')
+    .addTag('materials', 'Generación de material de estudio con IA')
     .addBearerAuth(
       {
         type: 'http',
