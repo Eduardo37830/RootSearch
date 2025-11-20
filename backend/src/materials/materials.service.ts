@@ -45,4 +45,38 @@ export class MaterialsService {
 
     return nuevoMaterial.save();
   }
+
+  async findAll(transcriptionId?: string) {
+    const filter = transcriptionId ? { transcriptionId } : {};
+    return this.materialModel.find(filter).exec();
+  }
+
+  async findOne(id: string) {
+    const material = await this.materialModel.findById(id).exec();
+    if (!material) {
+      throw new NotFoundException(`Material con ID ${id} no encontrado`);
+    }
+    return material;
+  }
+
+  async update(id: string, updateMaterialDto: any) {
+    const updatedMaterial = await this.materialModel
+      .findByIdAndUpdate(id, updateMaterialDto, { new: true })
+      .exec();
+    if (!updatedMaterial) {
+      throw new NotFoundException(`Material con ID ${id} no encontrado`);
+    }
+    return updatedMaterial;
+  }
+
+  async remove(id: string) {
+    const deletedMaterial = await this.materialModel
+      .findByIdAndDelete(id)
+      .exec();
+    if (!deletedMaterial) {
+      throw new NotFoundException(`Material con ID ${id} no encontrado`);
+    }
+    return deletedMaterial;
+  }
+
 }

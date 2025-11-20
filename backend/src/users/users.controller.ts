@@ -36,7 +36,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Crear un nuevo usuario',
     description:
-      'Crea un nuevo usuario (Docente o Estudiante) en el sistema. Solo accesible por ADMIN.',
+      'Crea un nuevo usuario en el sistema. Si no se especifica rol, se asigna ESTUDIANTE por defecto. Solo accesible por ADMIN.',
   })
   @ApiResponse({
     status: 201,

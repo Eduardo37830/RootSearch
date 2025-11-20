@@ -4,6 +4,7 @@ import {
   IsString,
   MinLength,
   IsMongoId,
+  IsOptional,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -35,10 +36,12 @@ export class CreateUserDto {
   password: string;
 
   @ApiProperty({
-    description: 'ID del rol a asignar (DOCENTE o ESTUDIANTE)',
+    description:
+      'ID del rol a asignar (DOCENTE o ESTUDIANTE). Si no se envía, se asigna ESTUDIANTE por defecto.',
     example: '507f1f77bcf86cd799439011',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
-  roleId: string;
+  roleId?: string;
 }
