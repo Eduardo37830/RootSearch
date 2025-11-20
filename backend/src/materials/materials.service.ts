@@ -18,7 +18,7 @@ export class MaterialsService {
     @Inject(CONTENT_GENERATOR) private contentGenerator: IContentGenerator,
   ) {}
 
-  async generateAndSave(transcriptionId: string) {
+  async generarTodoSecuencial(transcriptionId: string) {
     // 1. Buscar la transcripción existente
     const transcription =
       await this.transcriptionModel.findById(transcriptionId);
@@ -28,22 +28,67 @@ export class MaterialsService {
       );
     }
 
-    // 2. Llamar a tu módulo de IA (Ollama/LM Studio/OpenAI)
-    const contenidoGenerado = await this.contentGenerator.generarMaterial(
-      transcription.text,
-    );
-
-    // 3. Guardar en la colección de Materiales
+    // 2. Crear material inicial
     const nuevoMaterial = new this.materialModel({
       transcriptionId: transcription._id,
-      resumen: contenidoGenerado.resumen,
-      glosario: contenidoGenerado.glosario,
-      quiz: contenidoGenerado.quiz,
-      checklist: contenidoGenerado.checklist,
-      estado: 'PENDIENTE_REVISION', // El docente debe aprobarlo luego
+      estado: 'GENERANDO',
     });
+    await nuevoMaterial.save();
 
-    return nuevoMaterial.save();
+    const texto = transcription.text;
+
+    try {
+      // 3. Generar secuencialmente y guardar progreso
+      const resumen = await this.contentGenerator.generarResumen(texto);
+      nuevoMaterial.resumen = resumen;
+      await nuevoMaterial.save();
+
+      const glosario = await this.contentGenerator.generarGlosario(texto);
+      nuevoMaterial.glosario = glosario;
+      await nuevoMaterial.save();
+
+      const quiz = await this.contentGenerator.generarQuiz(texto);
+      nuevoMaterial.quiz = quiz;
+      await nuevoMaterial.save();
+
+      const checklist = await this.contentGenerator.generarChecklist(texto);
+      nuevoMaterial.checklist = checklist;
+
+      nuevoMaterial.estado = 'PENDIENTE_REVISION';
+      return await nuevoMaterial.save();
+    } catch (error) {
+      nuevoMaterial.estado = 'ERROR_GENERACION';
+      await nuevoMaterial.save();
+      throw error;
+    }
+  }
+
+  async generarSoloResumen(materialId: string) {
+    const material = await this.materialModel
+      .findById(materialId)
+      .populate('transcriptionId');
+    if (!material) throw new NotFoundException('Material no encontrado');
+
+    const transcription = material.transcriptionId as any;
+    const texto = transcription.text;
+
+    const resumen = await this.contentGenerator.generarResumen(texto);
+    material.resumen = resumen;
+    return material.save();
+  }
+
+  async generarSoloQuiz(materialId: string) {
+    const material = await this.materialModel
+      .findById(materialId)
+      .populate('transcriptionId');
+    if (!material) throw new NotFoundException('Material no encontrado');
+
+    const transcription = material.transcriptionId as any;
+    const texto = transcription.text;
+
+    const quiz = await this.contentGenerator.generarQuiz(texto);
+    material.quiz = quiz;
+    return material.save();
   }
 
   async findAll(transcriptionId?: string) {
@@ -78,5 +123,4 @@ export class MaterialsService {
     }
     return deletedMaterial;
   }
-
 }

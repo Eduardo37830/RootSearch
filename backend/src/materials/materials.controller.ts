@@ -32,17 +32,35 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class MaterialsController {
   constructor(private readonly materialsService: MaterialsService) {}
 
-  // Endpoint específico para disparar la generación
-  @Post('generate/:transcriptionId')
+  // 1. Generar SOLO Resumen
+  @Post(':id/resumen')
   @Roles('administrador', 'docente')
   @ApiOperation({
-    summary: 'Generar material de estudio a partir de una transcripción',
+    summary: 'Regenerar solo el resumen de un material existente',
+  })
+  async generateResumen(@Param('id') id: string) {
+    return this.materialsService.generarSoloResumen(id);
+  }
+
+  // 2. Generar SOLO Quiz
+  @Post(':id/quiz')
+  @Roles('administrador', 'docente')
+  @ApiOperation({ summary: 'Regenerar solo el quiz de un material existente' })
+  async generateQuiz(@Param('id') id: string) {
+    return this.materialsService.generarSoloQuiz(id);
+  }
+
+  // 3. Endpoint "Maestro" (Llama a todos internamente)
+  @Post('generate-all/:transcriptionId')
+  @Roles('administrador', 'docente')
+  @ApiOperation({
+    summary: 'Generar todo el material de estudio secuencialmente',
   })
   @ApiParam({ name: 'transcriptionId', description: 'ID de la transcripción' })
   @ApiResponse({ status: 201, description: 'Material generado exitosamente.' })
   @ApiResponse({ status: 404, description: 'Transcripción no encontrada.' })
-  async generateMaterials(@Param('transcriptionId') transcriptionId: string) {
-    return this.materialsService.generateAndSave(transcriptionId);
+  async generateAll(@Param('transcriptionId') transcriptionId: string) {
+    return this.materialsService.generarTodoSecuencial(transcriptionId);
   }
 
   @Get()
