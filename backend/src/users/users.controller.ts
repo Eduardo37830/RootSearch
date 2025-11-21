@@ -55,6 +55,7 @@ export class UsersController {
   }
 
   @Get()
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({
     summary: 'Obtener todos los usuarios',
     description:

@@ -32,7 +32,7 @@ export default function Dashboard() {
           return;
         }
 
-        setUser({ id: userData.id, name: userData.name, role });
+        setUser({ id: userData._id, name: userData.name, role });
 
         if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
           const studentsData = await getAllStudents();
@@ -57,14 +57,7 @@ export default function Dashboard() {
     async function fetchTeacherCourses() {
       if (user?.role.toLowerCase() === "docente" && user.id) {
         const courses: Course[] = await getCoursesByTeacher(user.id);
-        // Filtrar los cursos cuyo teacher sea igual al id del usuario actual
-        const filteredCourses = courses.filter(course => {
-          if (typeof course.teacher === 'object' && course.teacher._id) {
-            return course.teacher._id === user.id;
-          }
-          return course.teacher === user.id;
-        });
-        setTeacherCourses(filteredCourses);
+        setTeacherCourses(courses);
       }
     }
     fetchTeacherCourses();
