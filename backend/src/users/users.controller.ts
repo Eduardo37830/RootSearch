@@ -28,7 +28,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 @ApiBearerAuth('JWT-auth')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN') // Solo los administradores pueden acceder a estos endpoints
+@Roles('administrador') // Solo los administradores pueden acceder a estos endpoints
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

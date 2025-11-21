@@ -35,7 +35,7 @@ export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   @Post()
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden crear cursos
+  @Roles('administrador', 'docente') // Admin o Docente pueden crear cursos
   @ApiOperation({
     summary: 'Crear un nuevo curso',
     description:
@@ -58,7 +58,7 @@ export class CoursesController {
   }
 
   @Get()
-  @Roles('ADMIN', 'DOCENTE', 'ESTUDIANTE') // Todos los roles autenticados pueden ver cursos
+  @Roles('administrador', 'docente', 'estudiante') // Todos los roles autenticados pueden ver cursos
   @ApiOperation({
     summary: 'Obtener todos los cursos',
     description:
@@ -94,7 +94,7 @@ export class CoursesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'DOCENTE', 'ESTUDIANTE')
+  @Roles('administrador', 'docente', 'estudiante')
   @ApiOperation({
     summary: 'Obtener un curso por ID',
     description:
@@ -118,7 +118,7 @@ export class CoursesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden actualizar cursos
+  @Roles('administrador', 'docente') // Admin o Docente pueden actualizar cursos
   @ApiOperation({
     summary: 'Actualizar un curso',
     description:
@@ -142,7 +142,7 @@ export class CoursesController {
   }
 
   @Post(':id/enroll')
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden inscribir estudiantes
+  @Roles('administrador', 'docente') // Admin o Docente pueden inscribir estudiantes
   @ApiOperation({
     summary: 'Inscribir estudiantes en un curso',
     description:
@@ -173,7 +173,7 @@ export class CoursesController {
   }
 
   @Post(':id/unenroll')
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden desinscribir estudiantes
+  @Roles('administrador', 'docente') // Admin o Docente pueden desinscribir estudiantes
   @ApiOperation({
     summary: 'Desinscribir estudiantes de un curso',
     description: 'Remueve uno o más estudiantes del curso.',
@@ -199,7 +199,7 @@ export class CoursesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN') // Solo Admin puede eliminar cursos
+  @Roles('administrador') // Solo Admin puede eliminar cursos
   @ApiOperation({
     summary: 'Eliminar un curso',
     description:
