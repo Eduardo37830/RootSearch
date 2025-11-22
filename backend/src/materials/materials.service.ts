@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Transcription } from '../transcription/schemas/transcription.schema';
@@ -7,21 +7,26 @@ import {
   CONTENT_GENERATOR,
   IContentGenerator,
 } from '../content-generation/content-generation.interface';
+import { EmailService } from '../auth/services/email.service';
 
 @Injectable()
 export class MaterialsService {
+  private readonly logger = new Logger(MaterialsService.name);
+
   constructor(
     @InjectModel(Transcription.name)
     private transcriptionModel: Model<Transcription>,
     @InjectModel(GeneratedMaterial.name)
     private materialModel: Model<GeneratedMaterial>,
     @Inject(CONTENT_GENERATOR) private contentGenerator: IContentGenerator,
+    private emailService: EmailService,
   ) {}
 
   async generarTodoSecuencial(transcriptionId: string) {
     // 1. Buscar la transcripción existente
-    const transcription =
-      await this.transcriptionModel.findById(transcriptionId);
+    const transcription = await this.transcriptionModel
+      .findById(transcriptionId)
+      .populate('userId');
     if (!transcription || !transcription.text) {
       throw new NotFoundException(
         'Transcripción no encontrada o sin texto listo',
@@ -31,6 +36,7 @@ export class MaterialsService {
     // 2. Crear material inicial
     const nuevoMaterial = new this.materialModel({
       transcriptionId: transcription._id,
+      courseId: transcription.courseId,
       estado: 'GENERANDO',
     });
     await nuevoMaterial.save();
@@ -55,7 +61,20 @@ export class MaterialsService {
       nuevoMaterial.checklist = checklist;
 
       nuevoMaterial.estado = 'PENDIENTE_REVISION';
-      return await nuevoMaterial.save();
+      const savedMaterial = await nuevoMaterial.save();
+
+      // --- 4. NUEVO: NOTIFICAR AL DOCENTE ---
+      if (transcription.userId && (transcription.userId as any).email) {
+        const teacherEmail = (transcription.userId as any).email;
+        this.logger.log(`Enviando correo a: ${teacherEmail}`);
+        await this.emailService.sendNotificationEmail(
+          teacherEmail,
+          '¡Tu material de estudio está listo! 📚',
+          `Hemos terminado de procesar la clase. Ya puedes revisar el resumen, quiz y glosario generados.`,
+        );
+      }
+
+      return savedMaterial;
     } catch (error) {
       nuevoMaterial.estado = 'ERROR_GENERACION';
       await nuevoMaterial.save();
@@ -91,17 +110,54 @@ export class MaterialsService {
     return material.save();
   }
 
-  async findAll(transcriptionId?: string) {
-    const filter = transcriptionId ? { transcriptionId } : {};
+  async findAll(transcriptionId?: string, user?: any) {
+    const filter: any = {};
+    if (transcriptionId) {
+      filter.transcriptionId = transcriptionId;
+    }
+
+    // Filtro de privacidad para estudiantes
+    if (user && user.roles && user.roles.includes('estudiante')) {
+      filter.estado = 'PUBLICADO';
+    }
+
     return this.materialModel.find(filter).exec();
   }
 
-  async findOne(id: string) {
+  async findByCourse(courseId: string, user: any) {
+    const filter: any = { courseId };
+
+    // Filtro de privacidad para estudiantes
+    if (user && user.roles && user.roles.includes('estudiante')) {
+      filter.estado = 'PUBLICADO';
+    }
+
+    return this.materialModel.find(filter).exec();
+  }
+
+  async findOne(id: string, user?: any) {
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
       throw new NotFoundException(`Material con ID ${id} no encontrado`);
     }
+
+    // Verificación de privacidad para estudiantes
+    if (user && user.roles && user.roles.includes('estudiante')) {
+      if (material.estado !== 'PUBLICADO') {
+        throw new NotFoundException(`Material no disponible para estudiantes`);
+      }
+    }
+
     return material;
+  }
+
+  async publish(id: string) {
+    const material = await this.materialModel.findById(id);
+    if (!material) {
+      throw new NotFoundException(`Material con ID ${id} no encontrado`);
+    }
+    material.estado = 'PUBLICADO';
+    return material.save();
   }
 
   async update(id: string, updateMaterialDto: any) {

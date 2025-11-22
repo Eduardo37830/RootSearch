@@ -4,24 +4,24 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
-    private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter;
 
-    constructor(private configService: ConfigService) {
-        this.transporter = nodemailer.createTransport({
-            service: this.configService.get<string>('EMAIL_SERVICE'),
-            auth: {
-                user: this.configService.get<string>('EMAIL_USER'),
-                pass: this.configService.get<string>('EMAIL_PASS'),
-            },
-        });
-    }
+  constructor(private configService: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      service: this.configService.get<string>('EMAIL_SERVICE'),
+      auth: {
+        user: this.configService.get<string>('EMAIL_USER'),
+        pass: this.configService.get<string>('EMAIL_PASS'),
+      },
+    });
+  }
 
-    async sendVerificationCode(email: string, code: number, userName: string) {
-        const mailOptions = {
-            from: `"RootSearch" <${this.configService.get<string>('EMAIL_USER')}>`,
-            to: email,
-            subject: 'Verification Code - RootSearch',
-            html: `
+  async sendVerificationCode(email: string, code: number, userName: string) {
+    const mailOptions = {
+      from: `"RootSearch" <${this.configService.get<string>('EMAIL_USER')}>`,
+      to: email,
+      subject: 'Verification Code - RootSearch',
+      html: `
                 <!DOCTYPE html>
                 <html lang="en" style="margin: 0; padding: 0;">
                 <head>
@@ -72,14 +72,14 @@ export class EmailService {
                 </body>
                 </html>
             `,
-            attachments: [
-                {
-                    filename: 'logo.png',
-                    path: './assets/logo.png', // Asegúrate de que la ruta sea correcta
-                    cid: 'logo' // Identificador usado en el <img src="cid:logo">
-                }
-            ],
-            text: `RootSearch - Verification Code
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: './assets/logo.png', // Asegúrate de que la ruta sea correcta
+          cid: 'logo', // Identificador usado en el <img src="cid:logo">
+        },
+      ],
+      text: `RootSearch - Verification Code
 
     Hello ${userName},
 
@@ -91,26 +91,25 @@ export class EmailService {
 
     Sincerely,
     The RootSearch Team
-    © ${new Date().getFullYear()} RootSearch`
-        };
+    © ${new Date().getFullYear()} RootSearch`,
+    };
 
-        try {
-            const info = await this.transporter.sendMail(mailOptions);
-            console.log('Email sent:', info.messageId);
-            return { success: true, messageId: info.messageId };
-        } catch (error) {
-            console.error('Error sending email:', error);
-            throw new Error('Error sending verification email');
-        }
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Email sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error sending email:', error);
+      throw new Error('Error sending verification email');
     }
+  }
 
-
-    async sendWelcomeEmail(email: string, code: number, userName: string) {
-        const mailOptions = {
-            from: `"RootSearch" <${this.configService.get<string>('EMAIL_USER')}>`,
-            to: email,
-            subject: 'Welcome to RootSearch!',
-            html: `
+  async sendWelcomeEmail(email: string, code: number, userName: string) {
+    const mailOptions = {
+      from: `"RootSearch" <${this.configService.get<string>('EMAIL_USER')}>`,
+      to: email,
+      subject: 'Welcome to RootSearch!',
+      html: `
                 <!DOCTYPE html>
                 <html lang="en" style="margin: 0; padding: 0;">
                 <head>
@@ -163,14 +162,14 @@ export class EmailService {
                 </body>
                 </html>
             `,
-            attachments: [
-                {
-                    filename: 'logo.png',
-                    path: './assets/logo.png',
-                    cid: 'logo' // Identificador del logo inline
-                }
-            ],
-            text: `Welcome to RootSearch!
+      attachments: [
+        {
+          filename: 'logo.png',
+          path: './assets/logo.png',
+          cid: 'logo', // Identificador del logo inline
+        },
+      ],
+      text: `Welcome to RootSearch!
 
     Hello ${userName},
 
@@ -184,31 +183,35 @@ export class EmailService {
 
     Sincerely,
     The RootSearch Team
-    © ${new Date().getFullYear()} RootSearch`
-        };
+    © ${new Date().getFullYear()} RootSearch`,
+    };
 
-        try {
-            const info = await this.transporter.sendMail(mailOptions);
-            console.log('Welcome email sent:', info.messageId);
-            return { success: true, messageId: info.messageId };
-        } catch (error) {
-            console.error('Error sending welcome email:', error);
-            throw new Error('Error sending welcome email');
-        }
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Welcome email sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error sending welcome email:', error);
+      throw new Error('Error sending welcome email');
     }
+  }
 
+  async sendPasswordResetEmail(
+    email: string,
+    resetToken: string,
+    userName: string,
+  ) {
+    const frontend =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const resetLink = `${frontend}/reset-password?token=${resetToken}`;
 
-    async sendPasswordResetEmail(email: string, resetToken: string, userName: string) {
-        const frontend = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-        const resetLink = `${frontend}/reset-password?token=${resetToken}`;
+    const logoUrl = 'http://localhost:3000/assets/logo.png'; // Ajusta si usas otro puerto o ruta
 
-        const logoUrl = 'http://localhost:3000/assets/logo.png'; // Ajusta si usas otro puerto o ruta
-
-        const mailOptions = {
-            from: `"RootSearch" <${this.configService.get<string>('EMAIL_USER')}>`,
-            to: email,
-            subject: 'Recuperación de contraseña - RootSearch',
-            html: `
+    const mailOptions = {
+      from: `"RootSearch" <${this.configService.get<string>('EMAIL_USER')}>`,
+      to: email,
+      subject: 'Recuperación de contraseña - RootSearch',
+      html: `
                 <html>
                     <body style="font-family: Arial, sans-serif; color: #222; margin: 0; padding: 20px; background-color: #f9fafb;">
                         <div style="max-width:600px; margin:0 auto; background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
@@ -239,7 +242,7 @@ export class EmailService {
                     </body>
                 </html>
             `,
-            text: `RootSearch - Recuperación de contraseña
+      text: `RootSearch - Recuperación de contraseña
 
     Hola ${userName},
 
@@ -253,15 +256,44 @@ export class EmailService {
     Si no solicitaste esto, ignora este correo.
 
     © ${new Date().getFullYear()} RootSearch`,
-        };
+    };
 
-        try {
-            const info = await this.transporter.sendMail(mailOptions);
-            console.log('Email de recuperación enviado:', info.messageId);
-            return { success: true, messageId: info.messageId };
-        } catch (error) {
-            console.error('Error enviando email de recuperación:', error);
-            throw new Error('Error al enviar el correo de recuperación de contraseña');
-        }
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Email de recuperación enviado:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error enviando email de recuperación:', error);
+      throw new Error(
+        'Error al enviar el correo de recuperación de contraseña',
+      );
     }
+  }
+
+  async sendNotificationEmail(to: string, subject: string, content: string) {
+    const mailOptions = {
+      from: `"RootSearch" <${this.configService.get<string>('EMAIL_USER')}>`,
+      to: to,
+      subject: subject,
+      html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <h2 style="color: #6356E5;">Hola Docente,</h2>
+                    <p style="font-size: 16px; color: #333;">${content}</p>
+                    <p style="font-size: 16px; color: #333;">Ingresa a la plataforma para revisarlo.</p>
+                    <br>
+                    <hr style="border: none; border-top: 1px solid #eee;" />
+                    <small style="color: #777;">Equipo RootSearch</small>
+                </div>
+            `,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Notification email sent:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('Error sending notification email:', error);
+      throw error;
+    }
+  }
 }

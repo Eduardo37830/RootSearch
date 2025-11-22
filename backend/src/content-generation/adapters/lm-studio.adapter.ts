@@ -70,12 +70,11 @@ export class LmStudioAdapter implements IContentGenerator {
   }
 
   private parsearJson(textoRaw: string, key: string): any {
+    let limpio = textoRaw.trim();
     try {
-      let limpio = textoRaw.trim();
-      // Limpieza agresiva de bloques de código markdown ```json ... ```
-      if (limpio.includes('```')) {
-        limpio = limpio.replace(/```json/g, '').replace(/```/g, '');
-      }
+      // Limpieza agresiva de bloques de código markdown (Case insensitive)
+      limpio = limpio.replace(/```json/gi, '').replace(/```/g, '');
+
       // Búsqueda de llaves
       const inicio = limpio.indexOf('{');
       const fin = limpio.lastIndexOf('}');
@@ -87,7 +86,7 @@ export class LmStudioAdapter implements IContentGenerator {
       return objeto[key] || []; // Devolvemos solo el array interno
     } catch (e) {
       this.logger.warn(
-        `Fallo al parsear JSON para ${key}. Texto: ${textoRaw.substring(0, 50)}...`,
+        `Fallo al parsear JSON para ${key}. Error: ${e.message}. Intentado: ${limpio.substring(0, 100)}...`,
       );
       return []; // Fallback seguro para no romper todo el proceso
     }

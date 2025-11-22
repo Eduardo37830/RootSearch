@@ -26,6 +26,7 @@ import { UpdateMaterialDto } from './dto/update-material.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('materials')
 @ApiBearerAuth('JWT-auth')
@@ -68,6 +69,15 @@ export class MaterialsController {
     return this.materialsService.generarTodoSecuencial(transcriptionId);
   }
 
+  @Get('course/:courseId')
+  @Roles('administrador', 'docente', 'estudiante')
+  @ApiOperation({ summary: 'Obtener todos los materiales de un curso' })
+  @ApiParam({ name: 'courseId', description: 'ID del curso' })
+  @ApiResponse({ status: 200, description: 'Lista de materiales del curso.' })
+  findByCourse(@Param('courseId') courseId: string, @CurrentUser() user: any) {
+    return this.materialsService.findByCourse(courseId, user);
+  }
+
   @Get()
   @Roles('administrador', 'docente', 'estudiante')
   @ApiOperation({ summary: 'Obtener todos los materiales generados' })
@@ -77,8 +87,11 @@ export class MaterialsController {
     description: 'Filtrar por ID de transcripción',
   })
   @ApiResponse({ status: 200, description: 'Lista de materiales.' })
-  findAll(@Query('transcriptionId') transcriptionId?: string) {
-    return this.materialsService.findAll(transcriptionId);
+  findAll(
+    @Query('transcriptionId') transcriptionId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.materialsService.findAll(transcriptionId, user);
   }
 
   @Get(':id')
@@ -87,8 +100,19 @@ export class MaterialsController {
   @ApiParam({ name: 'id', description: 'ID del material' })
   @ApiResponse({ status: 200, description: 'Material encontrado.' })
   @ApiResponse({ status: 404, description: 'Material no encontrado.' })
-  findOne(@Param('id') id: string) {
-    return this.materialsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.materialsService.findOne(id, user);
+  }
+
+  @Patch(':id/publish')
+  @Roles('administrador','docente')
+  @ApiOperation({
+    summary: 'Publicar un material para que sea visible por estudiantes',
+  })
+  @ApiParam({ name: 'id', description: 'ID del material' })
+  @ApiResponse({ status: 200, description: 'Material publicado.' })
+  publish(@Param('id') id: string) {
+    return this.materialsService.publish(id);
   }
 
   @Get(':id/export/pdf')

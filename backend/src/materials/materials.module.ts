@@ -12,6 +12,7 @@ import {
 } from '../transcription/schemas/transcription.schema';
 import { ContentGenerationModule } from '../content-generation/content-generation.module';
 import { PdfExporterService } from './services/pdf-exporter.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PdfExporterService } from './services/pdf-exporter.service';
       { name: Transcription.name, schema: TranscriptionSchema },
     ]),
     ContentGenerationModule,
+    AuthModule,
   ],
   controllers: [MaterialsController],
   providers: [MaterialsService, PdfExporterService],
