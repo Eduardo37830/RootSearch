@@ -15,3 +15,21 @@ export async function createCourse(courseData) {
 
   return response.json();
 }
+
+export async function getCoursesByTeacher(teacherId) {
+  const token = localStorage.getItem('access_token'); // Usar la clave correcta
+
+  const response = await fetch(`${API_URL}/courses/by-teacher/${encodeURIComponent(teacherId)}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Error fetching courses for teacher');
+  }
+
+  return response.json();
+}

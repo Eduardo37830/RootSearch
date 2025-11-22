@@ -3,14 +3,23 @@ import { useEffect, useState } from "react";
 import SideBar from "@/components/SideBar";
 import { getUserProfile } from "@/services/users";
 import { getAllStudents } from "@/services/students";
+import { getCoursesByTeacher } from "@/services/courses";
 import Toast from "@/components/Toast";
 
+type Course = {
+  _id: string;
+  name: string;
+  teacher: string | { _id: string; name?: string; email?: string };
+};
+
 export default function Dashboard() {
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);
   const [students, setStudents] = useState([]);
+  const [teacherCourses, setTeacherCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "error" } | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -18,14 +27,14 @@ export default function Dashboard() {
         const userData = await getUserProfile();
         const role = userData.roles?.[0]?.name || null;
 
-        if (!role || !["profesor", "estudiante", "administrador"].includes(role.toLowerCase())) {
+        if (!role || !["docente", "estudiante", "administrador"].includes(role.toLowerCase())) {
           setError("No tienes permisos para acceder a esta sección.");
           return;
         }
 
-        setUser({ name: userData.name, role });
+        setUser({ id: userData._id, name: userData.name, role });
 
-        if (role.toLowerCase() === "profesor"||"administrador") {
+        if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
           const studentsData = await getAllStudents();
           setStudents(studentsData);
         }
@@ -43,6 +52,16 @@ export default function Dashboard() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    async function fetchTeacherCourses() {
+      if (user?.role.toLowerCase() === "docente" && user.id) {
+        const courses: Course[] = await getCoursesByTeacher(user.id);
+        setTeacherCourses(courses);
+      }
+    }
+    fetchTeacherCourses();
+  }, [user]);
 
   if (loading) return <div className="text-white p-4">Cargando datos...</div>;
 
@@ -68,7 +87,7 @@ export default function Dashboard() {
       <SideBar user={user!} />
 
       <main className="flex-1 flex flex-col gap-4 p-6">
-        {user?.role.toLowerCase() === "profesor"||user?.role.toLowerCase() === "administrador" ? (
+        {user?.role.toLowerCase() === "docente"||user?.role.toLowerCase() === "administrador" ? (
           <>
             <div className="flex flex-col lg:flex-row flex-1 gap-4">
               <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
@@ -81,10 +100,21 @@ export default function Dashboard() {
                   ))}
                 </ul>
               </div>
-              <div className="w-full lg:w-2/3 bg-[#35448e] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-white">Courses</h2>
+              <div
+                className={`w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 ${expanded ? 'lg:w-full' : ''}`}
+                onClick={() => setExpanded(!expanded)}
+              >
+                <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
                 <p className="text-sm text-white/90">
-                  Aquí se muestra la cantidad de cursos.
+                  {teacherCourses.length > 0 ? (
+                    <ul>
+                      {teacherCourses.map((course) => (
+                        <li key={course._id}>{course.name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "No tienes cursos asignados."
+                  )}
                 </p>
               </div>
             </div>
@@ -104,10 +134,12 @@ export default function Dashboard() {
                   Aquí se muestra el material de clase dejado.
                 </p>
               </div>
-              <div className="w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6">
+              <div
+                className={`w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 ${expanded ? 'lg:w-full' : ''}`}
+                onClick={() => setExpanded(!expanded)}
+              >
                 <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
                 <p className="text-sm text-white/90">
-                  Aquí se muestra la cantidad de cursos.
                 </p>
               </div>
             </div>
