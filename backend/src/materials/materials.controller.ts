@@ -9,6 +9,7 @@ import {
   Delete,
   Query,
   Res,
+  NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -20,6 +21,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { MaterialsService } from './materials.service';
+import { PdfExporterService } from './services/pdf-exporter.service';
 import { UpdateMaterialDto } from './dto/update-material.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -30,7 +32,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 @Controller('materials')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MaterialsController {
-  constructor(private readonly materialsService: MaterialsService) {}
+  constructor(
+    private readonly materialsService: MaterialsService,
+    private readonly pdfExporter: PdfExporterService,
+  ) {}
 
   // 1. Generar SOLO Resumen
   @Post(':id/resumen')
@@ -84,6 +89,27 @@ export class MaterialsController {
   @ApiResponse({ status: 404, description: 'Material no encontrado.' })
   findOne(@Param('id') id: string) {
     return this.materialsService.findOne(id);
+  }
+
+  @Get(':id/export/pdf')
+  @Roles('administrador', 'docente', 'estudiante') // Todos pueden descargar
+  @ApiOperation({ summary: 'Exportar material a PDF' })
+  async exportPdf(@Param('id') id: string, @Res() res: Response) {
+    const material = await this.materialsService.findOne(id);
+
+    if (!material) {
+      throw new NotFoundException('Material no encontrado');
+    }
+
+    const pdfBuffer = await this.pdfExporter.generatePdf(material);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=RootSearch_${id}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.end(pdfBuffer);
   }
 
   @Patch(':id')

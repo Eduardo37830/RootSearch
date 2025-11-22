@@ -11,6 +11,7 @@ import {
   TranscriptionSchema,
 } from '../transcription/schemas/transcription.schema';
 import { ContentGenerationModule } from '../content-generation/content-generation.module';
+import { PdfExporterService } from './services/pdf-exporter.service';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { ContentGenerationModule } from '../content-generation/content-generatio
     ContentGenerationModule,
   ],
   controllers: [MaterialsController],
-  providers: [MaterialsService],
+  providers: [MaterialsService, PdfExporterService],
   exports: [MaterialsService],
 })
 export class MaterialsModule {}
