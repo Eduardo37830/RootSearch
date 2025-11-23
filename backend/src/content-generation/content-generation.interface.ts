@@ -1,9 +1,8 @@
 export const CONTENT_GENERATOR = 'IContentGenerator';
 
-// Esta es la estructura exacta que tu Frontend necesita recibir
 export interface GeneratedContent {
   resumen: string; // Markdown
-  glosario: { termino: string; definicion: string }[];
+  glosario: { term: string; definition: string }[];
   quiz: {
     pregunta: string;
     opciones: string[];
@@ -14,5 +13,9 @@ export interface GeneratedContent {
 }
 
 export interface IContentGenerator {
-  generarMaterial(textoTranscrito: string): Promise<GeneratedContent>;
+  // Métodos individuales
+  generarResumen(transcripcion: string): Promise<string>;
+  generarGlosario(transcripcion: string): Promise<any[]>;
+  generarQuiz(transcripcion: string): Promise<any[]>;
+  generarChecklist(transcripcion: string): Promise<string[]>;
 }

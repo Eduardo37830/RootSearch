@@ -29,10 +29,20 @@ export class UsersService {
       throw new ConflictException('El email ya está registrado');
     }
 
-    // Verificar que el rol existe
-    const role = await this.roleModel.findById(createUserDto.roleId).exec();
-    if (!role) {
-      throw new NotFoundException('El rol especificado no existe');
+    // Verificar que el rol existe o asignar por defecto 'estudiante'
+    let roleId = createUserDto.roleId;
+
+    if (!roleId) {
+      const defaultRole = await this.roleModel.findOne({ name: 'estudiante' }).exec();
+      if (!defaultRole) {
+        throw new NotFoundException('El rol por defecto (estudiante) no existe en el sistema');
+      }
+      roleId = (defaultRole as any)._id.toString();
+    } else {
+      const role = await this.roleModel.findById(roleId).exec();
+      if (!role) {
+        throw new NotFoundException('El rol especificado no existe');
+      }
     }
 
     // Hash de la contraseña
@@ -43,13 +53,12 @@ export class UsersService {
       name: createUserDto.name,
       email: createUserDto.email,
       password: hashedPassword,
-      roles: [new Types.ObjectId(createUserDto.roleId)],
+      roles: [new Types.ObjectId(roleId)],
     });
 
     const savedUser = await newUser.save();
 
-    // Retornar sin el password
-    return this.sanitizeUser(savedUser);
+    return savedUser;
   }
 
   async findAll(): Promise<User[]> {

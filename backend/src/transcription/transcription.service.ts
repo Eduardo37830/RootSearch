@@ -99,10 +99,7 @@ export class TranscriptionService {
     return this.transcriptionModel
       .findByIdAndUpdate(
         new Types.ObjectId(id),
-        {
-          ...updateTranscriptionDto,
-          updatedAt: new Date(),
-        },
+        { $set: updateTranscriptionDto },
         { new: true },
       )
       .exec();
@@ -111,7 +108,7 @@ export class TranscriptionService {
   /**
    * Elimina una transcripción
    */
-  async delete(
+  async remove(
     id: string | Types.ObjectId,
   ): Promise<TranscriptionDocument | null> {
     return this.transcriptionModel

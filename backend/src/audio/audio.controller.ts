@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -14,6 +16,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
+import {
   FileInterceptor,
   FileFieldsInterceptor,
 } from '@nestjs/platform-express';
@@ -21,6 +33,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AudioService } from './audio.service';
 import { TranscriptionService } from '../transcription/transcription.service';
+import { UpdateTranscriptionDto } from './dto/update-transcription.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -31,6 +44,8 @@ import * as path from 'path';
  * - POST /audio/transcribe - Transcribe un archivo de audio
  * - GET /audio/health - Verifica el estado del servicio de transcripción
  */
+@ApiTags('audio')
+@ApiBearerAuth('JWT-auth')
 @Controller('audio')
 @UseGuards(JwtAuthGuard)
 export class AudioController {
@@ -41,30 +56,25 @@ export class AudioController {
 
   /**
    * Endpoint para transcribir un archivo de audio
-   *
-   * @route POST /audio/transcribe
-   * @param file - Archivo de audio (multipart/form-data)
-   * @param courseId - ID del curso (form-data o query)
-   * @param user - Usuario autenticado (inyectado por decorador)
-   * @returns {
-   *   success: boolean,
-   *   transcription: string,
-   *   language: string,
-   *   fileName: string,
-   *   processingTime: number (ms),
-   *   timestamp: ISO string,
-   *   courseId: string
-   * }
-   *
-   * @example
-   * POST /audio/transcribe
-   * Headers: Authorization: Bearer {jwt_token}
-   * Body: form-data
-   *   - audio: [file.mp3]
-   *   - courseId: 63f7a123... (ID del curso)
-   *   - language: es (optional, default: es)
    */
   @Post('transcribe')
+  @ApiOperation({ summary: 'Transcribir un archivo de audio' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        audio: {
+          type: 'string',
+          format: 'binary',
+        },
+        courseId: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Audio transcrito exitosamente.' })
   @UseInterceptors(FileInterceptor('audio'))
   async transcribeAudio(
     @UploadedFile() file: any,
@@ -203,13 +213,12 @@ export class AudioController {
 
   /**
    * Obtiene todas las transcripciones del usuario autenticado
-   *
-   * @route GET /audio/transcriptions
-   * @param skip - Número de registros a saltar (paginación)
-   * @param limit - Número de registros a retornar
-   * @returns Array de transcripciones con metadata
    */
   @Get('transcriptions')
+  @ApiOperation({ summary: 'Obtener todas las transcripciones del usuario' })
+  @ApiQuery({ name: 'skip', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiResponse({ status: 200, description: 'Lista de transcripciones.' })
   async getTranscriptions(
     @CurrentUser() user: any,
     @Query('skip') skip: string = '0',
@@ -253,12 +262,12 @@ export class AudioController {
 
   /**
    * Obtiene una transcripción específica por ID
-   *
-   * @route GET /audio/transcriptions/:id
-   * @param id - ID de la transcripción
-   * @returns Datos completos de la transcripción
    */
   @Get('transcriptions/:id')
+  @ApiOperation({ summary: 'Obtener una transcripción por ID' })
+  @ApiParam({ name: 'id', description: 'ID de la transcripción' })
+  @ApiResponse({ status: 200, description: 'Transcripción encontrada.' })
+  @ApiResponse({ status: 404, description: 'Transcripción no encontrada.' })
   async getTranscriptionById(@Param('id') id: string) {
     try {
       const transcription = await this.transcriptionService.findById(id);
@@ -290,14 +299,16 @@ export class AudioController {
 
   /**
    * Obtiene todas las transcripciones de un curso específico
-   *
-   * @route GET /audio/courses/:courseId/transcriptions
-   * @param courseId - ID del curso
-   * @param skip - Número de registros a saltar (paginación)
-   * @param limit - Número de registros a retornar
-   * @returns Array de transcripciones del curso
    */
   @Get('courses/:courseId/transcriptions')
+  @ApiOperation({ summary: 'Obtener transcripciones de un curso' })
+  @ApiParam({ name: 'courseId', description: 'ID del curso' })
+  @ApiQuery({ name: 'skip', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de transcripciones del curso.',
+  })
   async getCourseTranscriptions(
     @Param('courseId') courseId: string,
     @Query('skip') skip: string = '0',
@@ -340,5 +351,37 @@ export class AudioController {
           process.env.NODE_ENV === 'development' ? error.message : undefined,
       });
     }
+  }
+
+  @Patch('transcriptions/:id')
+  @ApiOperation({ summary: 'Actualizar una transcripción' })
+  @ApiParam({ name: 'id', description: 'ID de la transcripción' })
+  @ApiResponse({ status: 200, description: 'Transcripción actualizada.' })
+  @ApiResponse({ status: 404, description: 'Transcripción no encontrada.' })
+  async updateTranscription(
+    @Param('id') id: string,
+    @Body() updateTranscriptionDto: UpdateTranscriptionDto,
+  ) {
+    const updated = await this.transcriptionService.update(
+      id,
+      updateTranscriptionDto,
+    );
+    if (!updated) {
+      throw new NotFoundException('Transcripción no encontrada');
+    }
+    return { success: true, data: updated };
+  }
+
+  @Delete('transcriptions/:id')
+  @ApiOperation({ summary: 'Eliminar una transcripción' })
+  @ApiParam({ name: 'id', description: 'ID de la transcripción' })
+  @ApiResponse({ status: 200, description: 'Transcripción eliminada.' })
+  @ApiResponse({ status: 404, description: 'Transcripción no encontrada.' })
+  async removeTranscription(@Param('id') id: string) {
+    const deleted = await this.transcriptionService.remove(id);
+    if (!deleted) {
+      throw new NotFoundException('Transcripción no encontrada');
+    }
+    return { success: true, data: deleted };
   }
 }

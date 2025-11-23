@@ -57,6 +57,7 @@ import { Permission, PermissionSchema } from './schemas/permission.schema';
   ],
   exports: [
     AuthService,
+    EmailService,
     JwtAuthGuard,
     RolesGuard,
     PermissionsGuard,

@@ -12,6 +12,14 @@ export class GeneratedMaterial extends Document {
   })
   transcriptionId: string;
 
+  @ApiProperty({ description: 'ID del curso asociado' })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Course',
+    required: true,
+  })
+  courseId: string;
+
   @ApiProperty({ description: 'Resumen generado en formato Markdown' })
   @Prop()
   resumen: string;
