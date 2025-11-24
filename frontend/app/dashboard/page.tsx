@@ -7,10 +7,12 @@ import Toast from "@/components/Toast";
 
 export default function Dashboard() {
   const [user, setUser] = useState<{ name: string; role: string } | null>(null);
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [teacherCourses, setTeacherCourses] = useState<{ _id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "error" } | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -18,14 +20,14 @@ export default function Dashboard() {
         const userData = await getUserProfile();
         const role = userData.roles?.[0]?.name || null;
 
-        if (!role || !["profesor", "estudiante", "administrador"].includes(role.toLowerCase())) {
+        if (!role || !["docente", "estudiante", "administrador"].includes(role.toLowerCase())) {
           setError("No tienes permisos para acceder a esta sección.");
           return;
         }
 
         setUser({ name: userData.name, role });
 
-        if (role.toLowerCase() === "profesor"||"administrador") {
+        if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
           const studentsData = await getAllStudents();
           setStudents(studentsData);
         }
@@ -34,13 +36,13 @@ export default function Dashboard() {
           typeof err === "object" && err !== null && "message" in err
             ? (err as { message?: string }).message ?? "Error desconocido"
             : "Error desconocido";
+
         setToast({ message: "Error al cargar datos: " + errorMessage, type: "error" });
         setError("Error al obtener los datos del usuario o estudiantes.");
       } finally {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
@@ -63,36 +65,56 @@ export default function Dashboard() {
     );
   }
 
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#040418] text-black">
       <SideBar user={user!} />
 
       <main className="flex-1 flex flex-col gap-4 p-6">
-        {user?.role.toLowerCase() === "profesor"||user?.role.toLowerCase() === "administrador" ? (
+        {user?.role.toLowerCase() === "docente" || user?.role.toLowerCase() === "administrador" ? (
           <>
             <div className="flex flex-col lg:flex-row flex-1 gap-4">
-              <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-white">List of students</h2>
-                <ul className="text-sm text-white/90">
+              <div
+                className="flex-1 bg-[#101434] rounded-lg shadow p-6 transition-all duration-300 hover:scale-102 hover:shadow-md cursor-pointer"
+                onClick={() => (window.location.href = '/students/list')}
+              >
+                <h2 className="text-2xl font-semibold mb-4 text-white">List of students</h2>
+                <ul className="text-xl text-white/90">
                   {students.map((student: any) => (
-                    <li key={student.id} className="mb-2">
+                    <li key={student._id} className="mb-2">
                       {student.name}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="w-full lg:w-2/3 bg-[#35448e] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-white">Courses</h2>
-                <p className="text-sm text-white/90">
-                  Aquí se muestra la cantidad de cursos.
+
+              <div
+                className="flex-1 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 hover:scale-102 hover:shadow-md cursor-pointer"
+                onClick={() => (window.location.href = '/courses/list')}
+              >
+                <h2 className="text-2xl font-semibold mb-4 text-white">Cursos</h2>
+                <p className="text-xl text-white/90">
+                  {teacherCourses.length > 0 ? (
+                    <ul>
+                      {teacherCourses.map((course) => (
+                        <li key={course._id}>{course.name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "No tienes cursos asignados."
+                  )}
                 </p>
               </div>
+
+              <div className="flex-1 bg-[#1e293b] rounded-lg shadow p-6 transition-all duration-300 hover:scale-102 hover:shadow-md cursor-pointer">
+                <h2 className="text-2xl font-semibold mb-4 text-white">Materials LLM</h2>
+                <p className="text-xl text-white/90">Por el momento no has publicado ningun material.</p>
+              </div>
             </div>
-            <div className="w-full bg-[#101434] rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 text-white">Notifications</h2>
-              <p className="text-sm text-white/90">
-                Aquí se muestra la cantidad de notificaciones.
-              </p>
+
+            <div className="w-full h-48 bg-[#101434] rounded-lg shadow p-6 transition-all duration-300 hover:scale-102 hover:shadow-md cursor-pointer">
+              <h2 className="text-2xl font-semibold mb-4 text-white">Notifications</h2>
+              <p className="text-xl text-white/90">Aquí se muestra la cantidad de notificaciones.</p>
             </div>
           </>
         ) : (
@@ -100,26 +122,26 @@ export default function Dashboard() {
             <div className="flex flex-col lg:flex-row flex-1 gap-4">
               <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 text-white">Material de Clase</h2>
-                <p className="text-sm text-white/90">
-                  Aquí se muestra el material de clase dejado.
-                </p>
+                <p className="text-sm text-white/90">Aquí se muestra el material de clase dejado.</p>
               </div>
-              <div className="w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
-                <p className="text-sm text-white/90">
-                  Aquí se muestra la cantidad de cursos.
-                </p>
+
+              <div
+                className={`w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 ${expanded ? 'lg:w-full' : ''}`}
+                onClick={() => setExpanded(!expanded)}
+              >
+                <h2 className="text-2xl font-semibold mb-4 text-white">Cursos</h2>
+                <p className="text-xl text-white/90"></p>
               </div>
             </div>
-            <div className="w-full bg-[#101434] rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 text-white">Notificaciones</h2>
-              <p className="text-sm text-white/90">
-                Aquí se muestra la cantidad de notificaciones.
-              </p>
+
+            <div className="w-full bg-[#101434] rounded-lg shadow p-6 transition-all duration-300 hover:scale-102 hover:shadow-md cursor-pointer">
+              <h2 className="text-2xl font-semibold mb-4 text-white">Notificaciones</h2>
+              <p className="text-xl text-white/90">Aquí se muestra la cantidad de notificaciones.</p>
             </div>
           </>
         )}
       </main>
+
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );

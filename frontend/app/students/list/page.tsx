@@ -1,0 +1,110 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getAllStudents } from "../../../services/students";
+import { getUserProfile } from "../../../services/users";
+import Image from "next/image";
+import SideBar from "@/components/SideBar";
+
+type Student = {
+  _id?: string;
+  name: string;
+  email: string;
+  createdAt: string;
+};
+
+export default function StudentsPage() {
+  const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);  
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const userData = await getUserProfile();
+        const role = userData.roles?.[0]?.name || "";
+
+        if (!["docente", "administrador"].includes(role.toLowerCase())) {
+          setError("No tienes permisos para acceder a esta sección.");
+          return;
+        }
+
+        setUser({ id: userData._id, name: userData.name, role });
+      } catch (error) {
+        console.error("Error al obtener el perfil del usuario:", error);
+      }
+    }
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    async function fetchStudents() {
+      if (user) {
+        setLoading(true);
+        const data = await getAllStudents();
+        setStudents(data);
+        setLoading(false);
+      }
+    }
+    fetchStudents();
+  }, [user]);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#101434] text-white">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold mb-2">⚠️ Acceso Denegado</h1>
+          <p className="text-zinc-300">{error}</p>
+          <a
+            href="/dashboard"
+            className="mt-4 inline-block bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition"
+          >
+            Volver al inicio
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-[#181828] text-white font-sans">
+      <SideBar user={user!} />
+      <main className="flex-1 p-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Listado de Estudiantes</h1>
+        </div>
+        <div className="w-full overflow-x-auto rounded-lg">
+          <table className="min-w-[400px] w-full bg-[#23233a] rounded-lg">
+            <thead>
+              <tr>
+                <th className="py-2 px-4 text-left whitespace-nowrap">Nombre</th>
+                <th className="py-2 px-4 text-left whitespace-nowrap">Correo</th>
+                <th className="py-2 px-4 text-left whitespace-nowrap">Fecha de registro</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={3} className="py-4 px-4 text-center">Cargando...</td></tr>
+              ) : students.length === 0 ? (
+                <tr><td colSpan={3} className="py-4 px-4 text-center">No hay estudiantes registrados.</td></tr>
+              ) : (
+                students.map((student, idx) => (
+                  <tr
+                    key={student._id || idx}
+                    className="border-b border-[#333] cursor-pointer hover:bg-[#2a2a3a]"
+                    onClick={() => window.location.href = `/students/view?studentId=${student._id}`}
+                  >
+                    <td className="py-2 px-4 whitespace-nowrap text-sm md:text-base">{student.name}</td>
+                    <td className="py-2 px-4 whitespace-nowrap text-sm md:text-base">{student.email}</td>
+                    <td className="py-2 px-4 whitespace-nowrap text-sm md:text-base">{new Date(student.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  );
+}
