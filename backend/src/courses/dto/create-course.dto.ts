@@ -26,6 +26,15 @@ export class CreateCourseDto {
   description: string;
 
   @ApiProperty({
+    description: 'URL de la imagen del curso',
+    example: 'https://example.com/course-image.jpg',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  photo?: string;
+
+  @ApiProperty({
     description: 'Texto extraído del PDF del plan de estudios (opcional)',
     required: false,
   })

@@ -67,6 +67,7 @@ export class CoursesService {
     const newCourse = new this.courseModel({
       name: createCourseDto.name,
       description: createCourseDto.description,
+      photo: createCourseDto.photo,
       piaa_syllabus: piaaText,
       teacher: new Types.ObjectId(createCourseDto.teacherId),
       students: createCourseDto.studentIds
@@ -197,6 +198,7 @@ export class CoursesService {
     if (updateCourseDto.name) course.name = updateCourseDto.name;
     if (updateCourseDto.description)
       course.description = updateCourseDto.description;
+    if (updateCourseDto.photo) course.photo = updateCourseDto.photo;
     if (updateCourseDto.active !== undefined)
       course.active = updateCourseDto.active;
 
