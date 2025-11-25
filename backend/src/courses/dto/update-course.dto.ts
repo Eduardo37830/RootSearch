@@ -27,6 +27,15 @@ export class UpdateCourseDto {
   description?: string;
 
   @ApiProperty({
+    description: 'URL de la imagen del curso',
+    example: 'https://example.com/course-image.jpg',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  photo?: string;
+
+  @ApiProperty({
     description: 'ID del nuevo profesor (debe tener rol DOCENTE)',
     example: '507f1f77bcf86cd799439011',
     required: false,
@@ -54,4 +63,12 @@ export class UpdateCourseDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiProperty({
+    description: 'Texto extraído del PDF del plan de estudios (opcional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  piaa_syllabus?: string;
 }

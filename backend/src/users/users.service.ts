@@ -33,9 +33,13 @@ export class UsersService {
     let roleId = createUserDto.roleId;
 
     if (!roleId) {
-      const defaultRole = await this.roleModel.findOne({ name: 'estudiante' }).exec();
+      const defaultRole = await this.roleModel
+        .findOne({ name: 'estudiante' })
+        .exec();
       if (!defaultRole) {
-        throw new NotFoundException('El rol por defecto (estudiante) no existe en el sistema');
+        throw new NotFoundException(
+          'El rol por defecto (estudiante) no existe en el sistema',
+        );
       }
       roleId = (defaultRole as any)._id.toString();
     } else {
@@ -53,6 +57,10 @@ export class UsersService {
       name: createUserDto.name,
       email: createUserDto.email,
       password: hashedPassword,
+      photo: createUserDto.photo,
+      phone: createUserDto.phone,
+      address: createUserDto.address,
+      birthDate: createUserDto.birthDate,
       roles: [new Types.ObjectId(roleId)],
     });
 
@@ -139,6 +147,10 @@ export class UsersService {
     // Actualizar campos
     if (updateUserDto.name) user.name = updateUserDto.name;
     if (updateUserDto.email) user.email = updateUserDto.email;
+    if (updateUserDto.photo) user.photo = updateUserDto.photo;
+    if (updateUserDto.phone) user.phone = updateUserDto.phone;
+    if (updateUserDto.address) user.address = updateUserDto.address;
+    if (updateUserDto.birthDate) user.birthDate = updateUserDto.birthDate;
 
     // Si se actualiza la contraseña, hacer hash
     if (updateUserDto.password) {
