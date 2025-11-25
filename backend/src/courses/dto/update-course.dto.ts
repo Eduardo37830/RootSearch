@@ -54,4 +54,12 @@ export class UpdateCourseDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiProperty({
+    description: 'Texto extraído del PDF del plan de estudios (opcional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  piaa_syllabus?: string;
 }

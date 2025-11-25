@@ -55,6 +55,7 @@ export class UsersController {
   }
 
   @Get()
+  @Roles('administrador', 'docente') // Admin y Docente pueden ver usuarios
   @ApiOperation({
     summary: 'Obtener todos los usuarios',
     description:
@@ -78,6 +79,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles('administrador', 'docente') // Admin y Docente pueden ver detalles de usuario
   @ApiOperation({
     summary: 'Obtener un usuario por ID',
     description: 'Obtiene la información detallada de un usuario específico.',

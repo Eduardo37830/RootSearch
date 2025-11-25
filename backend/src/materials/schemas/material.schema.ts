@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 @Schema({ timestamps: true })
 export class GeneratedMaterial extends Document {
@@ -72,6 +72,26 @@ export class GeneratedMaterial extends Document {
   @ApiProperty({ description: 'Lista de verificación de conceptos' })
   @Prop([String])
   checklist: string[];
+
+  @ApiPropertyOptional({
+    description: 'Alineación con el PIAA (Syllabus)',
+    type: 'object',
+    properties: {
+      score: { type: 'number', description: 'Puntaje de 0 a 100' },
+      analisis: { type: 'string', description: 'Explicación de la alineación' },
+    },
+  })
+  @Prop({
+    type: {
+      score: Number,
+      analisis: String,
+    },
+    _id: false,
+  })
+  piaa_alignment?: {
+    score: number;
+    analisis: string;
+  };
 
   @ApiProperty({
     description: 'Estado del material',

@@ -26,6 +26,14 @@ export class CreateCourseDto {
   description: string;
 
   @ApiProperty({
+    description: 'Texto extraído del PDF del plan de estudios (opcional)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  piaa_syllabus?: string;
+
+  @ApiProperty({
     description:
       'ID del usuario que será el profesor del curso (debe tener rol DOCENTE)',
     example: '507f1f77bcf86cd799439011',
