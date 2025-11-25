@@ -26,9 +26,28 @@ export async function getCoursesByTeacher(teacherId) {
       Authorization: `Bearer ${token}`,
     },
   });
+  console.log(response);
 
   if (!response.ok) {
     throw new Error('Error fetching courses for teacher');
+  }
+
+  return response.json();
+}
+
+export async function getCourseById(courseId) {
+  const token = localStorage.getItem('access_token');
+
+  const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseId)}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Error fetching course details');
   }
 
   return response.json();
