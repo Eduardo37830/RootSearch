@@ -316,6 +316,16 @@ export class CoursesController {
   @ApiParam({
     name: 'id',
     description: 'ID del curso',
+  @Get('by-teacher/:teacherId')
+  @Roles('administrador', 'docente')
+  @ApiOperation({
+    summary: 'Obtener cursos por ID del profesor',
+    description: 'Devuelve los cursos asociados a un profesor específico.',
+  })
+  @ApiParam({
+    name: 'teacherId',
+    required: true,
+    description: 'ID del profesor para filtrar los cursos',
     example: '507f1f77bcf86cd799439011',
   })
   @ApiResponse({
@@ -332,5 +342,13 @@ export class CoursesController {
     file: Express.Multer.File,
   ) {
     return this.coursesService.update(id, {}, file);
+    description: 'Lista de cursos obtenida exitosamente.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontraron cursos para el profesor dado.',
+  })
+  getCoursesByTeacher(@Param('teacherId') teacherId: string) {
+    return this.coursesService.findByTeacher(teacherId);
   }
 }

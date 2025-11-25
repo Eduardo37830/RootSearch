@@ -117,11 +117,13 @@ export class CoursesService {
       throw new BadRequestException('ID de profesor inválido');
     }
 
-    return this.courseModel
-      .find({ teacher: teacherId })
+    const courses = await this.courseModel
+      .find({ teacher: new Types.ObjectId(teacherId) })
       .populate('teacher', 'name email')
       .populate('students', 'name email')
       .exec();
+
+    return courses || [];
   }
 
   async findByStudent(studentId: string): Promise<Course[]> {
@@ -347,6 +349,6 @@ export class CoursesService {
       }
     }
 
-    return false;
+    return false; // Retornar false si no se encuentra el rol
   }
 }
