@@ -223,7 +223,7 @@ export class CoursesController {
   }
 
   @Get('by-teacher/:teacherId')
-  @Roles('ADMIN', 'DOCENTE')
+  @Roles('administrador', 'docente')
   @ApiOperation({
     summary: 'Obtener cursos por ID del profesor',
     description: 'Devuelve los cursos asociados a un profesor específico.',
