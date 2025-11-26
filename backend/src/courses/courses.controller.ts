@@ -316,6 +316,28 @@ export class CoursesController {
   @ApiParam({
     name: 'id',
     description: 'ID del curso',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Syllabus actualizado exitosamente.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Curso no encontrado.',
+  })
+  async uploadSyllabus(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'pdf' })],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.coursesService.update(id, {}, file);
+  }
+
   @Get('by-teacher/:teacherId')
   @Roles('administrador', 'docente')
   @ApiOperation({
@@ -330,18 +352,6 @@ export class CoursesController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Syllabus actualizado exitosamente.',
-  })
-  async uploadSyllabus(
-    @Param('id') id: string,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [new FileTypeValidator({ fileType: 'pdf' })],
-      }),
-    )
-    file: Express.Multer.File,
-  ) {
-    return this.coursesService.update(id, {}, file);
     description: 'Lista de cursos obtenida exitosamente.',
   })
   @ApiResponse({
