@@ -5,6 +5,7 @@ import SideBar from "@/components/SideBar";
 import { getUserProfile } from "@/services/users";
 import { getAllStudents } from "@/services/students";
 import { getCoursesByTeacher, getCourseById } from "@/services/courses";
+import { uploadAudio } from "@/services/audio";
 import Toast from "@/components/Toast";
 
 type Student = {
@@ -85,6 +86,31 @@ export default function Dashboard() {
     });
   };
 
+  const handleGenerateWithAI = async (courseId: string, courseName: string) => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'audio/*';
+    
+    fileInput.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        setToast({ message: 'No se seleccionó ningún archivo', type: 'error' });
+        return;
+      }
+
+      try {
+        setToast({ message: 'Cargando audio...', type: 'info' });
+        const result = await uploadAudio(courseId, file);
+        setToast({ message: `Audio cargado exitosamente para: ${courseName}`, type: 'success' });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        setToast({ message: `Error al cargar audio: ${errorMessage}`, type: 'error' });
+      }
+    };
+
+    fileInput.click();
+  };
+
   if (loading) return <div className="text-white p-4">Cargando datos...</div>;
 
   if (error) {
@@ -152,18 +178,24 @@ export default function Dashboard() {
                                   }}
                                   className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
                                 >
-                                  Mostrar PIA
+                                  Mostrar PIAA
+                                </button>
+                                <button
+                                  onClick={() => handleGenerateWithAI(course._id, course.name)}
+                                  className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
+                                >
+                                  Generar con IA
                                 </button>
                                 <button
                                   onClick={() => {
                                     setToast({
-                                      message: `Agregando contenido al curso: ${course.name}`,
+                                      message: `Mostrando contenido generado para: ${course.name}`,
                                       type: 'info',
                                     });
                                   }}
-                                  className="bg-[#35448e] hover:bg-[#2a3670] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
+                                  className="bg-[#fd7e14] hover:bg-[#e06c00] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
                                 >
-                                  Agregar Contenido
+                                  Mostrar Contenido Generado
                                 </button>
                               </div>
                             </td>
