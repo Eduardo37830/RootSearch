@@ -12,6 +12,8 @@ import { Role, RoleDocument } from '../auth/schemas/role.schema';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { EnrollStudentsDto } from './dto/enroll-students.dto';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdf = require('pdf-parse/lib/pdf-parse.js');
 
 @Injectable()
 export class CoursesService {
@@ -21,7 +23,24 @@ export class CoursesService {
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
   ) {}
 
-  async create(createCourseDto: CreateCourseDto): Promise<Course> {
+  async create(
+    createCourseDto: CreateCourseDto,
+    user?: UserDocument,
+    file?: Express.Multer.File,
+  ): Promise<Course> {
+    let piaaText = createCourseDto.piaa_syllabus || '';
+
+    // Si el docente subió un PDF, extraemos el texto
+    if (file) {
+      try {
+        const data = await pdf(file.buffer);
+        // Limpiamos un poco el texto (saltos de línea excesivos)
+        piaaText = data.text.replace(/\n+/g, '\n');
+      } catch (error) {
+        console.error('Error al procesar el PDF del PIAA', error);
+      }
+    }
+
     // Verificar que el profesor existe y tiene el rol DOCENTE
     const teacher = await this.userModel
       .findById(createCourseDto.teacherId)
@@ -32,10 +51,10 @@ export class CoursesService {
       throw new NotFoundException('El profesor especificado no existe');
     }
 
-    const hasTeacherRole = await this.hasRole(teacher, 'DOCENTE');
+    const hasTeacherRole = await this.hasRole(teacher, 'docente');
     if (!hasTeacherRole) {
       throw new BadRequestException(
-        'El usuario especificado no tiene el rol de DOCENTE',
+        'El usuario especificado no tiene el rol de docente',
       );
     }
 
@@ -48,6 +67,8 @@ export class CoursesService {
     const newCourse = new this.courseModel({
       name: createCourseDto.name,
       description: createCourseDto.description,
+      photo: createCourseDto.photo,
+      piaa_syllabus: piaaText,
       teacher: new Types.ObjectId(createCourseDto.teacherId),
       students: createCourseDto.studentIds
         ? createCourseDto.studentIds.map((id) => new Types.ObjectId(id))
@@ -96,11 +117,13 @@ export class CoursesService {
       throw new BadRequestException('ID de profesor inválido');
     }
 
-    return this.courseModel
-      .find({ teacher: teacherId })
+    const courses = await this.courseModel
+      .find({ teacher: new Types.ObjectId(teacherId) })
       .populate('teacher', 'name email')
       .populate('students', 'name email')
       .exec();
+
+    return courses || [];
   }
 
   async findByStudent(studentId: string): Promise<Course[]> {
@@ -115,7 +138,11 @@ export class CoursesService {
       .exec();
   }
 
-  async update(id: string, updateCourseDto: UpdateCourseDto): Promise<Course> {
+  async update(
+    id: string,
+    updateCourseDto: UpdateCourseDto,
+    file?: Express.Multer.File,
+  ): Promise<Course> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID de curso inválido');
     }
@@ -124,6 +151,20 @@ export class CoursesService {
 
     if (!course) {
       throw new NotFoundException(`Curso con ID ${id} no encontrado`);
+    }
+
+    // Lógica de actualización de PIAA Syllabus
+    if (file) {
+      try {
+        const data = await pdf(file.buffer);
+        // Limpiamos un poco el texto (saltos de línea excesivos)
+        course.piaa_syllabus = data.text.replace(/\n+/g, '\n');
+      } catch (error) {
+        console.error('Error al procesar el PDF del PIAA en update', error);
+      }
+    } else if (updateCourseDto.piaa_syllabus !== undefined) {
+      // Permitir borrar (string vacío) o actualizar manualmente
+      course.piaa_syllabus = updateCourseDto.piaa_syllabus;
     }
 
     // Si se actualiza el profesor, verificar que existe y tiene rol DOCENTE
@@ -137,7 +178,7 @@ export class CoursesService {
         throw new NotFoundException('El profesor especificado no existe');
       }
 
-      const hasTeacherRole = await this.hasRole(teacher, 'DOCENTE');
+      const hasTeacherRole = await this.hasRole(teacher, 'docente');
       if (!hasTeacherRole) {
         throw new BadRequestException(
           'El usuario especificado no tiene el rol de DOCENTE',
@@ -159,6 +200,7 @@ export class CoursesService {
     if (updateCourseDto.name) course.name = updateCourseDto.name;
     if (updateCourseDto.description)
       course.description = updateCourseDto.description;
+    if (updateCourseDto.photo) course.photo = updateCourseDto.photo;
     if (updateCourseDto.active !== undefined)
       course.active = updateCourseDto.active;
 
@@ -307,6 +349,6 @@ export class CoursesService {
       }
     }
 
-    return false;
+    return false; // Retornar false si no se encuentra el rol
   }
 }

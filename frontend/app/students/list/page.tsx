@@ -5,6 +5,8 @@ import { getAllStudents } from "../../../services/students";
 import { getUserProfile } from "../../../services/users";
 import Image from "next/image";
 import SideBar from "@/components/SideBar";
+import { FaUserGraduate } from "react-icons/fa";
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 type Student = {
   _id?: string;
@@ -14,7 +16,7 @@ type Student = {
 };
 
 export default function StudentsPage() {
-  const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);  
+  const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +52,20 @@ export default function StudentsPage() {
     fetchStudents();
   }, [user]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
+        <div className="text-center">
+          <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5] mx-auto mb-4" />
+          <span className="text-lg">Cargando...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#101434] text-white">
+      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
         <div className="text-center">
           <h1 className="text-2xl font-semibold mb-2">⚠️ Acceso Denegado</h1>
           <p className="text-zinc-300">{error}</p>
@@ -68,36 +81,52 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#181828] text-white font-sans">
+    <div className="flex min-h-screen bg-[#040418] text-white font-sans">
       <SideBar user={user!} />
       <main className="flex-1 p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Listado de Estudiantes</h1>
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <FaUserGraduate className="text-[#6356E5]" /> Listado de Estudiantes
+          </h1>
         </div>
-        <div className="w-full overflow-x-auto rounded-lg">
-          <table className="min-w-[400px] w-full bg-[#23233a] rounded-lg">
-            <thead>
+        <div className="w-full overflow-x-auto rounded-lg shadow-lg bg-[#101434]">
+          <table className="min-w-[400px] w-full text-sm text-white">
+            <thead className="bg-[#1a1a2e]">
               <tr>
-                <th className="py-2 px-4 text-left whitespace-nowrap">Nombre</th>
-                <th className="py-2 px-4 text-left whitespace-nowrap">Correo</th>
-                <th className="py-2 px-4 text-left whitespace-nowrap">Fecha de registro</th>
+                <th className="py-3 px-4 text-left whitespace-nowrap">Nombre</th>
+                <th className="py-3 px-4 text-left whitespace-nowrap">Correo</th>
+                <th className="py-3 px-4 text-left whitespace-nowrap">Fecha de registro</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={3} className="py-4 px-4 text-center">Cargando...</td></tr>
+                <tr>
+                  <td colSpan={3} className="py-6 px-4 text-center">
+                    <AiOutlineLoading3Quarters className="animate-spin text-2xl text-[#6356E5] mx-auto" />
+                    <span className="block mt-2">Cargando...</span>
+                  </td>
+                </tr>
               ) : students.length === 0 ? (
-                <tr><td colSpan={3} className="py-4 px-4 text-center">No hay estudiantes registrados.</td></tr>
+                <tr>
+                  <td colSpan={3} className="py-6 px-4 text-center text-zinc-400">
+                    No hay estudiantes registrados.
+                  </td>
+                </tr>
               ) : (
                 students.map((student, idx) => (
                   <tr
                     key={student._id || idx}
-                    className="border-b border-[#333] cursor-pointer hover:bg-[#2a2a3a]"
+                    className="border-b border-[#333] cursor-pointer hover:bg-[#2a2a3a] transition"
                     onClick={() => window.location.href = `/students/view?studentId=${student._id}`}
                   >
-                    <td className="py-2 px-4 whitespace-nowrap text-sm md:text-base">{student.name}</td>
-                    <td className="py-2 px-4 whitespace-nowrap text-sm md:text-base">{student.email}</td>
-                    <td className="py-2 px-4 whitespace-nowrap text-sm md:text-base">{new Date(student.createdAt).toLocaleDateString()}</td>
+                    <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center">
+                        {student.name.charAt(0).toUpperCase()}
+                      </div>
+                      {student.name}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base">{student.email}</td>
+                    <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base">{new Date(student.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))
               )}

@@ -4,6 +4,7 @@ import { getUserById } from '@/services/users';
 import SideBar from '@/components/SideBar';
 import { useState, useEffect } from "react";
 import Image from 'next/image';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 interface StudentProfileParams {
   id: string;
@@ -21,6 +22,7 @@ export default function StudentProfile({ params }: { params: StudentProfileParam
     dateOfBirth: '16/07/2004',
     gender: 'M',
   });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,14 +44,27 @@ export default function StudentProfile({ params }: { params: StudentProfileParam
         }));
       } catch (error) {
         console.error('Error fetching user info:', error);
+      } finally {
+        setLoading(false);
       }
     }
     fetchUser();
   }, [id]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
+        <div className="text-center">
+          <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5] mx-auto mb-4" />
+          <span className="text-lg">Cargando...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#101434] text-white">
+      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
         <div className="text-center">
           <h1 className="text-2xl font-semibold mb-2">⚠️ Acceso Denegado</h1>
           <p className="text-zinc-300">{error}</p>

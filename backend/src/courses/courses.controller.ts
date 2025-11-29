@@ -7,7 +7,13 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  FileTypeValidator,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -15,6 +21,8 @@ import {
   ApiBearerAuth,
   ApiQuery,
   ApiParam,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -22,20 +30,41 @@ import { UpdateCourseDto } from './dto/update-course.dto';
 import { EnrollStudentsDto } from './dto/enroll-students.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../auth/schemas/user.schema';
+import { User, UserDocument } from '../auth/schemas/user.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('courses')
 @ApiBearerAuth('JWT-auth')
 @Controller('courses')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   @Post()
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden crear cursos
+  @Roles('administrador', 'docente') // Admin o Docente pueden crear cursos
   @ApiOperation({
     summary: 'Crear un nuevo curso',
     description:
-      'Crea un nuevo curso en el sistema. Accesible por ADMIN y DOCENTE. El profesor debe tener rol DOCENTE.',
+      'Crea un nuevo curso en el sistema. Accesible por ADMIN y DOCENTE. El profesor debe tener rol DOCENTE. Permite subir un PDF de syllabus opcional.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Datos del curso y archivo PDF opcional',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        teacherId: { type: 'string' },
+        studentIds: { type: 'array', items: { type: 'string' } },
+        piaa_syllabus: { type: 'string' },
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 201,
@@ -49,12 +78,27 @@ export class CoursesController {
     status: 404,
     description: 'Profesor o estudiantes no encontrados.',
   })
-  create(@Body() createCourseDto: CreateCourseDto) {
-    return this.coursesService.create(createCourseDto);
+  @UseInterceptors(FileInterceptor('file'))
+  async create(
+    @Body() createCourseDto: CreateCourseDto,
+    @CurrentUser() user: User,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'pdf' })],
+        fileIsRequired: false,
+      }),
+    )
+    file?: Express.Multer.File,
+  ) {
+    return this.coursesService.create(
+      createCourseDto,
+      user as UserDocument,
+      file,
+    );
   }
 
   @Get()
-  @Roles('ADMIN', 'DOCENTE', 'ESTUDIANTE') // Todos los roles autenticados pueden ver cursos
+  @Roles('administrador', 'docente', 'estudiante') // Todos los roles autenticados pueden ver cursos
   @ApiOperation({
     summary: 'Obtener todos los cursos',
     description:
@@ -90,7 +134,7 @@ export class CoursesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'DOCENTE', 'ESTUDIANTE')
+  @Roles('administrador', 'docente', 'estudiante')
   @ApiOperation({
     summary: 'Obtener un curso por ID',
     description:
@@ -114,11 +158,31 @@ export class CoursesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden actualizar cursos
+  @Roles('administrador', 'docente') // Admin o Docente pueden actualizar cursos
+  @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({
     summary: 'Actualizar un curso',
     description:
-      'Actualiza la información de un curso existente. Todos los campos son opcionales.',
+      'Actualiza la información de un curso existente. Todos los campos son opcionales. Se puede subir un nuevo PDF de syllabus.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Datos del curso a actualizar y archivo PDF opcional',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        teacherId: { type: 'string' },
+        studentIds: { type: 'array', items: { type: 'string' } },
+        active: { type: 'boolean' },
+        piaa_syllabus: { type: 'string' },
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
   })
   @ApiParam({
     name: 'id',
@@ -133,12 +197,22 @@ export class CoursesController {
     status: 404,
     description: 'Curso no encontrado.',
   })
-  update(@Param('id') id: string, @Body() updateCourseDto: UpdateCourseDto) {
-    return this.coursesService.update(id, updateCourseDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateCourseDto: UpdateCourseDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'pdf' })],
+        fileIsRequired: false,
+      }),
+    )
+    file?: Express.Multer.File,
+  ) {
+    return this.coursesService.update(id, updateCourseDto, file);
   }
 
   @Post(':id/enroll')
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden inscribir estudiantes
+  @Roles('administrador', 'docente') // Admin o Docente pueden inscribir estudiantes
   @ApiOperation({
     summary: 'Inscribir estudiantes en un curso',
     description:
@@ -169,7 +243,7 @@ export class CoursesController {
   }
 
   @Post(':id/unenroll')
-  @Roles('ADMIN', 'DOCENTE') // Admin o Docente pueden desinscribir estudiantes
+  @Roles('administrador', 'docente') // Admin o Docente pueden desinscribir estudiantes
   @ApiOperation({
     summary: 'Desinscribir estudiantes de un curso',
     description: 'Remueve uno o más estudiantes del curso.',
@@ -195,7 +269,7 @@ export class CoursesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN') // Solo Admin puede eliminar cursos
+  @Roles('administrador') // Solo Admin puede eliminar cursos
   @ApiOperation({
     summary: 'Eliminar un curso',
     description:
@@ -216,5 +290,75 @@ export class CoursesController {
   })
   remove(@Param('id') id: string) {
     return this.coursesService.remove(id);
+  }
+
+  @Post(':id/syllabus')
+  @Roles('administrador', 'docente')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: 'Subir o actualizar el Syllabus (PDF) del curso',
+    description:
+      'Sube un archivo PDF, extrae el texto y lo guarda como metadatos PIAA del curso.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Archivo PDF del Syllabus',
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del curso',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Syllabus actualizado exitosamente.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Curso no encontrado.',
+  })
+  async uploadSyllabus(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'pdf' })],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.coursesService.update(id, {}, file);
+  }
+
+  @Get('by-teacher/:teacherId')
+  @Roles('administrador', 'docente')
+  @ApiOperation({
+    summary: 'Obtener cursos por ID del profesor',
+    description: 'Devuelve los cursos asociados a un profesor específico.',
+  })
+  @ApiParam({
+    name: 'teacherId',
+    required: true,
+    description: 'ID del profesor para filtrar los cursos',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de cursos obtenida exitosamente.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontraron cursos para el profesor dado.',
+  })
+  getCoursesByTeacher(@Param('teacherId') teacherId: string) {
+    return this.coursesService.findByTeacher(teacherId);
   }
 }

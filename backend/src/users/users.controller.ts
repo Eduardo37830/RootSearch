@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,11 +21,14 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('users')
 @ApiBearerAuth('JWT-auth')
 @Controller('users')
-@Roles('ADMIN') // Solo los administradores pueden acceder a estos endpoints
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('administrador') // Solo los administradores pueden acceder a estos endpoints
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -32,7 +36,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Crear un nuevo usuario',
     description:
-      'Crea un nuevo usuario (Docente o Estudiante) en el sistema. Solo accesible por ADMIN.',
+      'Crea un nuevo usuario en el sistema. Si no se especifica rol, se asigna ESTUDIANTE por defecto. Solo accesible por ADMIN.',
   })
   @ApiResponse({
     status: 201,
@@ -51,6 +55,7 @@ export class UsersController {
   }
 
   @Get()
+  @Roles('administrador', 'docente') // Admin y Docente pueden ver usuarios
   @ApiOperation({
     summary: 'Obtener todos los usuarios',
     description:
@@ -74,6 +79,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles('administrador', 'docente') // Admin y Docente pueden ver detalles de usuario
   @ApiOperation({
     summary: 'Obtener un usuario por ID',
     description: 'Obtiene la información detallada de un usuario específico.',
