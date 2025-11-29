@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import React from "react";
 import SideBar from "@/components/SideBar";
 import { getUserProfile } from "@/services/users";
 import { getAllStudents } from "@/services/students";
 import { getCoursesByTeacher, getCourseById } from "@/services/courses";
 import Toast from "@/components/Toast";
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 type Student = {
   _id: string;
@@ -28,6 +30,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "error" } | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchData() {
@@ -51,13 +54,13 @@ export default function Dashboard() {
           typeof err === "object" && err !== null && "message" in err
             ? (err as { message?: string }).message ?? "Error desconocido"
             : "Error desconocido";
+
         setToast({ message: "Error al cargar datos: " + errorMessage, type: "error" });
         setError("Error al obtener los datos del usuario o estudiantes.");
       } finally {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
@@ -71,11 +74,32 @@ export default function Dashboard() {
     fetchTeacherCourses();
   }, [user]);
 
-  if (loading) return <div className="text-white p-4">Cargando datos...</div>;
+  const toggleCourseExpansion = (courseId: string) => {
+    setExpandedCourses((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(courseId)) {
+        newSet.delete(courseId);
+      } else {
+        newSet.add(courseId);
+      }
+      return newSet;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
+        <div className="text-center">
+          <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5] mx-auto mb-4" />
+          <span className="text-lg">Cargando...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#101434] text-white">
+      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
         <div className="text-center">
           <h1 className="text-2xl font-semibold mb-2">⚠️ Acceso Denegado</h1>
           <p className="text-zinc-300">{error}</p>
@@ -90,6 +114,7 @@ export default function Dashboard() {
     );
   }
 
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#040418] text-black">
       <SideBar user={user!} />
@@ -98,64 +123,81 @@ export default function Dashboard() {
         {user?.role.toLowerCase() === "docente"||user?.role.toLowerCase() === "administrador" ? (
           <>
             <div className="w-full">
-              <h2 className="text-lg font-semibold mb-4 text-white">Mis Cursos</h2>
               {teacherCourses.length > 0 ? (
                 <div className="bg-[#101434] rounded-lg shadow overflow-x-auto">
                   <table className="w-full text-sm text-white">
                     <thead>
                       <tr className="border-b border-[#2a2a4a] bg-[#0f0f2e]">
-                        <th className="px-6 py-4 text-left font-semibold">Nombre del Curso</th>
-                        <th className="px-6 py-4 text-left font-semibold">Estudiantes Asignados</th>
-                        <th className="px-6 py-4 text-center font-semibold">Acciones</th>
+                        <th className="px-6 py-4 text-left font-semibold">Course name</th>
+                        <th className="px-6 py-4 text-left font-semibold">Assigned Students</th>
+                        <th className="px-6 py-4 text-center font-semibold"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {teacherCourses.map((course) => (
-                        <tr key={course._id} className="border-b border-[#2a2a4a] hover:bg-[#151540] transition">
-                          <td className="px-6 py-4 font-medium">{course.name}</td>
-                          <td className="px-6 py-4">
-                            {Array.isArray(course.students) && course.students.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {course.students.map((student: any) => (
-                                  <span
-                                    key={typeof student === 'string' ? student : student._id}
-                                    className="bg-[#6356E5] text-white px-3 py-1 rounded-full text-xs"
-                                  >
-                                    {typeof student === 'string' ? 'ID: ' + student : student.name || 'Estudiante'}
-                                  </span>
-                                ))}
+                        <React.Fragment key={course._id}>
+                          <tr className="border-b border-[#2a2a4a] hover:bg-[#151540] transition">
+                            <td className="px-6 py-4 font-medium">{course.name}</td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={() => toggleCourseExpansion(course._id)}
+                                className="text-[#6356E5] hover:text-[#7a6eff] font-medium cursor-pointer flex items-center gap-2 transition"
+                              >
+                                <span>{expandedCourses.has(course._id) ? '▼' : '▶'}</span>
+                                <span>
+                                  {Array.isArray(course.students) && course.students.length > 0
+                                    ? `${course.students.length} estudiante${course.students.length > 1 ? 's' : ''}`
+                                    : 'Sin estudiantes'}
+                                </span>
+                              </button>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex gap-2 justify-center flex-wrap">
+                                <button
+                                  onClick={() => {
+                                    setToast({
+                                      message: `Mostrando PIA del curso: ${course.name}`,
+                                      type: 'info',
+                                    });
+                                  }}
+                                  className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
+                                >
+                                  Mostrar PIA
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setToast({
+                                      message: `Agregando contenido al curso: ${course.name}`,
+                                      type: 'info',
+                                    });
+                                  }}
+                                  className="bg-[#35448e] hover:bg-[#2a3670] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
+                                >
+                                  Agregar Contenido
+                                </button>
                               </div>
-                            ) : (
-                              <span className="text-white/50">Sin estudiantes</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex gap-2 justify-center flex-wrap">
-                              <button
-                                onClick={() => {
-                                  setToast({
-                                    message: `Mostrando PIA del curso: ${course.name}`,
-                                    type: 'info',
-                                  });
-                                }}
-                                className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
-                              >
-                                Mostrar PIA
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setToast({
-                                    message: `Agregando contenido al curso: ${course.name}`,
-                                    type: 'info',
-                                  });
-                                }}
-                                className="bg-[#35448e] hover:bg-[#2a3670] text-white px-4 py-2 rounded-lg transition font-medium text-sm"
-                              >
-                                Agregar Contenido
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                            </td>
+                          </tr>
+                          {expandedCourses.has(course._id) && Array.isArray(course.students) && course.students.length > 0 && (
+                            <tr className="bg-[#0a0a1f] border-b border-[#2a2a4a]">
+                              <td colSpan={3} className="px-6 py-4">
+                                <div className="space-y-2">
+                                  {course.students.map((student: any) => (
+                                    <div
+                                      key={typeof student === 'string' ? student : student._id}
+                                      className="bg-[#151540] rounded px-4 py-2 text-sm text-white flex items-center justify-between"
+                                    >
+                                      <span>{typeof student === 'string' ? 'ID: ' + student : student.name || 'Estudiante'}</span>
+                                      {typeof student !== 'string' && student.email && (
+                                        <span className="text-white/60 text-xs">{student.email}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -166,11 +208,10 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div className="w-full bg-[#101434] rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 text-white">Notifications</h2>
-              <p className="text-sm text-white/90">
-                Aquí se muestra la cantidad de notificaciones.
-              </p>
+
+            <div className="w-full h-48 bg-[#101434] rounded-lg shadow p-6 transition-all duration-300 hover:scale-102 hover:shadow-md cursor-pointer">
+              <h2 className="text-2xl font-semibold mb-4 text-white">Notifications</h2>
+              <p className="text-xl text-white/90">Aquí se muestra la cantidad de notificaciones.</p>
             </div>
           </>
         ) : (
@@ -178,9 +219,7 @@ export default function Dashboard() {
             <div className="flex flex-col lg:flex-row flex-1 gap-4">
               <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 text-white">Material de Clase</h2>
-                <p className="text-sm text-white/90">
-                  Aquí se muestra el material de clase dejado.
-                </p>
+                <p className="text-sm text-white/90">Aquí se muestra el material de clase dejado.</p>
               </div>
               <div
                 className={`w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 ${expanded ? 'lg:w-full' : ''}`}
@@ -191,15 +230,15 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-            <div className="w-full bg-[#101434] rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4 text-white">Notificaciones</h2>
-              <p className="text-sm text-white/90">
-                Aquí se muestra la cantidad de notificaciones.
-              </p>
+
+            <div className="w-full bg-[#101434] rounded-lg shadow p-6 transition-all duration-300 hover:scale-102 hover:shadow-md cursor-pointer">
+              <h2 className="text-2xl font-semibold mb-4 text-white">Notificaciones</h2>
+              <p className="text-xl text-white/90">Aquí se muestra la cantidad de notificaciones.</p>
             </div>
           </>
         )}
       </main>
+
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );

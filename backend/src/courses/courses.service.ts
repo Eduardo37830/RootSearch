@@ -51,10 +51,10 @@ export class CoursesService {
       throw new NotFoundException('El profesor especificado no existe');
     }
 
-    const hasTeacherRole = await this.hasRole(teacher, 'DOCENTE');
+    const hasTeacherRole = await this.hasRole(teacher, 'docente');
     if (!hasTeacherRole) {
       throw new BadRequestException(
-        'El usuario especificado no tiene el rol de DOCENTE',
+        'El usuario especificado no tiene el rol de docente',
       );
     }
 
@@ -178,7 +178,7 @@ export class CoursesService {
         throw new NotFoundException('El profesor especificado no existe');
       }
 
-      const hasTeacherRole = await this.hasRole(teacher, 'DOCENTE');
+      const hasTeacherRole = await this.hasRole(teacher, 'docente');
       if (!hasTeacherRole) {
         throw new BadRequestException(
           'El usuario especificado no tiene el rol de DOCENTE',
