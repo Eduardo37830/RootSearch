@@ -121,11 +121,16 @@ export async function getUserById(userId) {
   return res.json();
 }
 
-export async function updateUserProfile(userId, { name, email }) {
+export async function updateUserProfile(userId, { name, email, phone, address, birthDate, roleId }, isAdmin = false) {
   const token = localStorage.getItem("access_token");
   if (!token) {
     throw new Error("No se encontró un token de acceso. Por favor, inicia sesión.");
   }
+
+  // Construir el body según si es admin o no
+  const body = isAdmin 
+    ? { name, email, phone, address, birthDate, roleId }
+    : { name, email, phone, address, birthDate };
 
   const res = await fetch(`${API_URL}/users/${userId}`, {
     method: "PATCH",
@@ -133,11 +138,19 @@ export async function updateUserProfile(userId, { name, email }) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ name, email }),
+    body: JSON.stringify(body),
   });
 
   if (res.status === 401) {
     throw new Error("No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.");
+  }
+
+  if (res.status === 403) {
+    throw new Error("No tienes permiso para actualizar este usuario.");
+  }
+
+  if (res.status === 409) {
+    throw new Error("El email ya está en uso por otro usuario.");
   }
 
   if (!res.ok) {
