@@ -26,7 +26,8 @@ export class MaterialsService {
     // 1. Buscar la transcripción existente
     const transcription = await this.transcriptionModel
       .findById(transcriptionId)
-      .populate('userId');
+      .populate('userId')
+      .populate('courseId');
     if (!transcription || !transcription.text) {
       throw new NotFoundException(
         'Transcripción no encontrada o sin texto listo',
@@ -42,23 +43,50 @@ export class MaterialsService {
     await nuevoMaterial.save();
 
     const texto = transcription.text;
+    const course = transcription.courseId as any;
+    const syllabusContexto = course?.piaa_syllabus || '';
 
     try {
       // 3. Generar secuencialmente y guardar progreso
-      const resumen = await this.contentGenerator.generarResumen(texto);
+      const resumen = await this.contentGenerator.generarResumen(
+        texto,
+        syllabusContexto,
+      );
       nuevoMaterial.resumen = resumen;
       await nuevoMaterial.save();
 
-      const glosario = await this.contentGenerator.generarGlosario(texto);
+      const glosario = await this.contentGenerator.generarGlosario(
+        texto,
+        syllabusContexto,
+      );
       nuevoMaterial.glosario = glosario;
       await nuevoMaterial.save();
 
-      const quiz = await this.contentGenerator.generarQuiz(texto);
+      const quiz = await this.contentGenerator.generarQuiz(
+        texto,
+        syllabusContexto,
+      );
       nuevoMaterial.quiz = quiz;
       await nuevoMaterial.save();
 
-      const checklist = await this.contentGenerator.generarChecklist(texto);
+      const checklist = await this.contentGenerator.generarChecklist(
+        texto,
+        syllabusContexto,
+      );
       nuevoMaterial.checklist = checklist;
+
+      // Calcular alineación PIAA si existe syllabus
+      if (syllabusContexto) {
+        try {
+          const alineacion = await this.contentGenerator.calcularAlineacion(
+            texto,
+            syllabusContexto,
+          );
+          nuevoMaterial.piaa_alignment = alineacion;
+        } catch (e) {
+          this.logger.warn('Error calculando alineación PIAA', e);
+        }
+      }
 
       nuevoMaterial.estado = 'PENDIENTE_REVISION';
       const savedMaterial = await nuevoMaterial.save();

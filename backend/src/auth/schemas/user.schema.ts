@@ -27,6 +27,18 @@ export class User {
   @Prop({ required: true })
   password: string;
 
+  @Prop({ required: false })
+  photo: string;
+
+  @Prop({ required: false })
+  phone: string;
+
+  @Prop({ required: false })
+  address: string;
+
+  @Prop({ required: false })
+  birthDate: string;
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Role' }] })
   roles: Role[] | Types.ObjectId[];
 }
