@@ -47,20 +47,37 @@ export class RolesService {
   }
 
   async update(id: string, updateRoleDto: UpdateRoleDto): Promise<Role> {
+    // Pre-fetch para validar existencia y reglas de negocio
+    const roleToUpdate = await this.roleModel.findById(id).exec();
+    if (!roleToUpdate) {
+      throw new NotFoundException(`Rol con ID ${id} no encontrado`);
+    }
+
+    // Lógica de rol protegido: no permitir renombrar
+    if (
+      updateRoleDto.name &&
+      roleToUpdate.name &&
+      this.PROTECTED_ROLES.includes(roleToUpdate.name.toLowerCase()) &&
+      updateRoleDto.name !== roleToUpdate.name
+    ) {
+      throw new BadRequestException('No se puede renombrar un rol protegido');
+    }
+
+    // Validar existencia de permisos si se envían
     if (updateRoleDto.permissions && updateRoleDto.permissions.length > 0) {
-        const count = await this.permissionModel.countDocuments({
-            _id: { $in: updateRoleDto.permissions }
-        });
-        if (count !== updateRoleDto.permissions.length) {
-            throw new NotFoundException('Uno o más permisos no existen');
-        }
+      const count = await this.permissionModel.countDocuments({
+        _id: { $in: updateRoleDto.permissions },
+      });
+      if (count !== updateRoleDto.permissions.length) {
+        throw new NotFoundException('Uno o más permisos no existen');
+      }
     }
 
     const updatedRole = await this.roleModel
       .findByIdAndUpdate(id, updateRoleDto, { new: true })
       .populate('permissions')
       .exec();
-      
+
     if (!updatedRole) {
       throw new NotFoundException(`Rol con ID ${id} no encontrado`);
     }
@@ -68,9 +85,14 @@ export class RolesService {
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.roleModel.findByIdAndDelete(id).exec();
-    if (!result) {
+    // Pre-fetch para validar existencia y reglas de negocio
+    const role = await this.roleModel.findById(id).exec();
+    if (!role) {
       throw new NotFoundException(`Rol con ID ${id} no encontrado`);
     }
+    if (role.name && this.PROTECTED_ROLES.includes(role.name.toLowerCase())) {
+      throw new BadRequestException('No se puede eliminar un rol protegido');
+    }
+    await this.roleModel.findByIdAndDelete(id).exec();
   }
 }
