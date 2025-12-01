@@ -76,7 +76,7 @@ export class UsersController {
     description: 'Estudiante no encontrado.',
   })
   getMyTeachers(@CurrentUser() user: User) {
-    return this.usersService.getMyTeachers((user as any)._id);
+    return this.usersService.getMyTeachers((user as any).id);
   }
 
   @Get()

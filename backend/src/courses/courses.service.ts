@@ -347,11 +347,11 @@ export class CoursesService {
     const roles = user.roles as any[];
 
     for (const role of roles) {
-      if (typeof role === 'object' && role.name === roleName) {
+      if (typeof role === 'object' && role.name.toUpperCase() === roleName.toUpperCase()) {
         return true;
       } else if (typeof role === 'string' || role instanceof Types.ObjectId) {
         const roleDoc = await this.roleModel.findById(role).exec();
-        if (roleDoc && roleDoc.name === roleName) {
+        if (roleDoc && roleDoc.name.toUpperCase() === roleName.toUpperCase()) {
           return true;
         }
       }
