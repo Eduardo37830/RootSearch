@@ -63,7 +63,6 @@ const CreateCoursePage = () => {
     try {
       const response = await createCourse(formData);
       setToast({ message: "Curso creado exitosamente", type: "success" });
-      console.log(response);
     } catch (error) {
       console.error('Error creating course:', error);
       setToast({ message: "Error creating course: " + (error instanceof Error ? error.message : String(error)), type: "error" });

@@ -1,10 +1,13 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export async function createCourse(courseData) {
+  const token = localStorage.getItem('access_token');
+  
   const response = await fetch(`${API_URL}/courses`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(courseData),
   });
@@ -26,10 +29,33 @@ export async function getCoursesByTeacher(teacherId) {
       Authorization: `Bearer ${token}`,
     },
   });
-  console.log(response);
 
   if (!response.ok) {
     throw new Error('Error fetching courses for teacher');
+  }
+
+  return response.json();
+}
+
+export async function getAllCourses(userId) {
+  const token = localStorage.getItem('access_token');
+  let url = `${API_URL}/courses`;
+  
+  // Si se proporciona un userId, agregarlo como parámetro query
+  if (userId) {
+    url += `?teacher=${userId}&student=${userId}`;
+  }
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Error fetching all courses');
   }
 
   return response.json();

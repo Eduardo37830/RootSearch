@@ -76,19 +76,19 @@ export default function SideBar({ user }: SideBarProps) {
               <img
                 src="/assets/iconos/dashboard.png"
                 alt="Dashboard Icon"
-                className="w-4 h-4"
+                className="w-6 h-6 mb-2"
               />
               {!isMinimized && "Dashboard"}
             </a>
-            {user?.role === "profesor" || user?.role === "administrador" ? (
+            {user?.role === "docente" || user?.role === "administrador" ? (
               <a
-                href="/students"
+                href="/students/list"
                 className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
               >
                 <img
                   src="/assets/iconos/students.png"
                   alt="Students Icon"
-                  className="w-4 h-4"
+                  className="w-6 h-6 mb-2"
                 />
                 {!isMinimized && "Students"}
               </a>
@@ -100,19 +100,19 @@ export default function SideBar({ user }: SideBarProps) {
                 <img
                   src="/assets/iconos/homework.png"
                   alt="Homeworks Icon"
-                  className="w-4 h-4"
+                  className="w-6 h-6 mb-2"
                 />
                 {!isMinimized && "HomeWorks"}
               </a>
             )}
             <a
-              href={user?.role === "profesor" || user?.role === "administrador" ? "/courses/create" : "/courses"}
+              href={user?.role === "profesor" || user?.role === "administrador" ? "/courses/create" : "/courses/list"}
               className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
               <img
                 src="/assets/iconos/cursos.png"
                 alt="Courses Icon"
-                className="w-4 h-4"
+                className="w-6 h-6 mb-2"
               />
               {!isMinimized && "Courses"}
             </a>
@@ -120,28 +120,28 @@ export default function SideBar({ user }: SideBarProps) {
               <>
                 <a
                   href="/admin/courses"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
                 >
                   <span>📚</span>
                   {!isMinimized && "Courses"}
                 </a>
                 <a
                   href="/admin/users"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
                 >
                   <span>👥</span>
                   {!isMinimized && "Users"}
                 </a>
                 <a
                   href="/admin/students"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
                 >
                   <span>🎓</span>
                   {!isMinimized && "Students (list)"}
                 </a>
                 <a
                   href="/admin/teachers"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition"
+                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
                 >
                   <span>👩‍🏫</span>
                   {!isMinimized && "Teachers (list)"}
@@ -163,25 +163,25 @@ export default function SideBar({ user }: SideBarProps) {
             </h2>
             <a
               href="/notifications"
-              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
             >
               <img
                 src="/assets/iconos/ojo_abierto.png"
                 alt="Notifications Icon"
-                className="w-4 h-4"
+                className="w-6 h-6 mb-2"
               />
               {!isMinimized && "Notifications"}
             </a>
             <a
-              href="/reports"
+              href="/Materials"
               className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
               <img
                 src="/assets/iconos/report.png"
-                alt="Reports Icon"
-                className="w-4 h-4"
+                alt="Material Icon"
+                className="w-6 h-6 mb-2"
               />
-              {!isMinimized && "Reports"}
+              {!isMinimized && "Materials LLM"}
             </a>
           </div>
 
@@ -198,12 +198,12 @@ export default function SideBar({ user }: SideBarProps) {
             </h2>
             <a
               href="/settings"
-              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
             >
               <img
                 src="/assets/iconos/setting.png"
                 alt="Settings Icon"
-                className="w-4 h-4"
+                className="w-6 h-6"
               />
               {!isMinimized && "Settings"}
             </a>
@@ -217,7 +217,7 @@ export default function SideBar({ user }: SideBarProps) {
               <img
                 src="/assets/iconos/logout.png"
                 alt="Logout Icon"
-                className="w-4 h-4 ml-0.5"
+                className="w-6 h-6 ml-0.5 "
               />
               {!isMinimized && "Logout"}
             </a>
@@ -233,7 +233,7 @@ export default function SideBar({ user }: SideBarProps) {
           <img
             src="/assets/avatar.png"
             alt="User Avatar"
-            className="w-9 h-9 rounded-full"
+            className="w-10 h-9 rounded-full"
           />
           {!isMinimized && (
             <div>

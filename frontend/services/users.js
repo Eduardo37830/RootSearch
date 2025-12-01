@@ -91,3 +91,59 @@ export async function verifyCode({ email, code }) {
 
   return res.json();
 }
+
+export async function getUserById(userId) {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("No se encontró un token de acceso. Por favor, inicia sesión.");
+  }
+
+  const res = await fetch(`${API_URL}/users/${userId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 404) {
+    throw new Error("Usuario no encontrado.");
+  }
+
+  if (res.status === 401) {
+    throw new Error("No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.");
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Error al obtener el usuario");
+  }
+
+  return res.json();
+}
+
+export async function updateUserProfile(userId, { name, email }) {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("No se encontró un token de acceso. Por favor, inicia sesión.");
+  }
+
+  const res = await fetch(`${API_URL}/users/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name, email }),
+  });
+
+  if (res.status === 401) {
+    throw new Error("No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.");
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Error al actualizar el perfil del usuario");
+  }
+
+  return res.json();
+}

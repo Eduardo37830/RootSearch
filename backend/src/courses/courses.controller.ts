@@ -8,9 +8,14 @@ import {
   Delete,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  FileTypeValidator,
   Res,
   NotFoundException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import {
   ApiTags,
@@ -19,6 +24,8 @@ import {
   ApiBearerAuth,
   ApiQuery,
   ApiParam,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -26,7 +33,7 @@ import { UpdateCourseDto } from './dto/update-course.dto';
 import { EnrollStudentsDto } from './dto/enroll-students.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '../auth/schemas/user.schema';
+import { User, UserDocument } from '../auth/schemas/user.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -42,7 +49,25 @@ export class CoursesController {
   @ApiOperation({
     summary: 'Crear un nuevo curso',
     description:
-      'Crea un nuevo curso en el sistema. Accesible por ADMIN y DOCENTE. El profesor debe tener rol DOCENTE.',
+      'Crea un nuevo curso en el sistema. Accesible por ADMIN y DOCENTE. El profesor debe tener rol DOCENTE. Permite subir un PDF de syllabus opcional.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Datos del curso y archivo PDF opcional',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        teacherId: { type: 'string' },
+        studentIds: { type: 'array', items: { type: 'string' } },
+        piaa_syllabus: { type: 'string' },
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 201,
@@ -56,8 +81,23 @@ export class CoursesController {
     status: 404,
     description: 'Profesor o estudiantes no encontrados.',
   })
-  create(@Body() createCourseDto: CreateCourseDto) {
-    return this.coursesService.create(createCourseDto);
+  @UseInterceptors(FileInterceptor('file'))
+  async create(
+    @Body() createCourseDto: CreateCourseDto,
+    @CurrentUser() user: User,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'pdf' })],
+        fileIsRequired: false,
+      }),
+    )
+    file?: Express.Multer.File,
+  ) {
+    return this.coursesService.create(
+      createCourseDto,
+      user as UserDocument,
+      file,
+    );
   }
 
   @Get()
@@ -122,10 +162,30 @@ export class CoursesController {
 
   @Patch(':id')
   @Roles('administrador', 'docente') // Admin o Docente pueden actualizar cursos
+  @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({
     summary: 'Actualizar un curso',
     description:
-      'Actualiza la información de un curso existente. Todos los campos son opcionales.',
+      'Actualiza la información de un curso existente. Todos los campos son opcionales. Se puede subir un nuevo PDF de syllabus.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Datos del curso a actualizar y archivo PDF opcional',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        teacherId: { type: 'string' },
+        studentIds: { type: 'array', items: { type: 'string' } },
+        active: { type: 'boolean' },
+        piaa_syllabus: { type: 'string' },
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
   })
   @ApiParam({
     name: 'id',
@@ -140,8 +200,18 @@ export class CoursesController {
     status: 404,
     description: 'Curso no encontrado.',
   })
-  update(@Param('id') id: string, @Body() updateCourseDto: UpdateCourseDto) {
-    return this.coursesService.update(id, updateCourseDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateCourseDto: UpdateCourseDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'pdf' })],
+        fileIsRequired: false,
+      }),
+    )
+    file?: Express.Multer.File,
+  ) {
+    return this.coursesService.update(id, updateCourseDto, file);
   }
 
   @Post(':id/enroll')
@@ -223,6 +293,52 @@ export class CoursesController {
   })
   remove(@Param('id') id: string) {
     return this.coursesService.remove(id);
+  }
+
+  @Post(':id/syllabus')
+  @Roles('administrador', 'docente')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: 'Subir o actualizar el Syllabus (PDF) del curso',
+    description:
+      'Sube un archivo PDF, extrae el texto y lo guarda como metadatos PIAA del curso.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Archivo PDF del Syllabus',
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del curso',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Syllabus actualizado exitosamente.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Curso no encontrado.',
+  })
+  async uploadSyllabus(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new FileTypeValidator({ fileType: 'pdf' })],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.coursesService.update(id, {}, file);
   }
 
   @Get(':id/pia')

@@ -13,39 +13,68 @@ export class LmStudioAdapter implements IContentGenerator {
 
   constructor(private readonly httpService: HttpService) { }
 
-  async generarResumen(transcripcion: string): Promise<string> {
+  async generarResumen(
+    transcripcion: string,
+    contexto?: string,
+  ): Promise<string> {
     const prompt = `
       Actúa como un Profesor Universitario. Genera un RESUMEN ESTRUCTURADO (Markdown) de esta clase.
       Usa títulos (##), negritas y listas. Enfócate en los argumentos principales y conclusiones.
       NO respondas con JSON, solo texto Markdown bien formateado.
     `;
-    return this.llamarIA(prompt, transcripcion, 0.4);
+    return this.llamarIA(prompt, transcripcion, 0.4, contexto);
   }
 
-  async generarQuiz(transcripcion: string): Promise<any[]> {
+  async generarQuiz(transcripcion: string, contexto?: string): Promise<any[]> {
     const prompt = `
       Genera un QUIZ de 5 preguntas (selección múltiple) basado en el texto.
       Responde ÚNICAMENTE con este JSON: 
       { "quiz": [{ "pregunta": "...", "opciones": [], "respuestaCorrecta": "...", "justificacion": "..." }] }
     `;
-    const json = await this.llamarIA(prompt, transcripcion, 0.2);
+    const json = await this.llamarIA(prompt, transcripcion, 0.2, contexto);
     return this.parsearJson(json, 'quiz');
   }
 
-  async generarGlosario(transcripcion: string): Promise<any[]> {
+  async generarGlosario(
+    transcripcion: string,
+    contexto?: string,
+  ): Promise<any[]> {
     const prompt = `Extrae un GLOSARIO (JSON): { "glosario": [{ "term": "...", "definition": "..." }] }`;
-    const json = await this.llamarIA(prompt, transcripcion, 0.2);
+    const json = await this.llamarIA(prompt, transcripcion, 0.2, contexto);
     return this.parsearJson(json, 'glosario');
   }
 
-  async generarChecklist(transcripcion: string): Promise<string[]> {
+  async generarChecklist(
+    transcripcion: string,
+    contexto?: string,
+  ): Promise<string[]> {
     const prompt = `
       Crea una CHECKLIST de 5 a 7 puntos clave para estudiar este tema.
       Responde ÚNICAMENTE con un JSON válido con esta estructura:
       { "checklist": ["Punto 1", "Punto 2"] }
     `;
-    const json = await this.llamarIA(prompt, transcripcion, 0.3);
+    const json = await this.llamarIA(prompt, transcripcion, 0.3, contexto);
     return this.parsearJson(json, 'checklist');
+  }
+
+  async calcularAlineacion(
+    transcripcion: string,
+    contexto: string,
+  ): Promise<{ score: number; analisis: string }> {
+    const prompt = `
+      Analiza qué tanto se alinea el contenido de esta clase (transcripción) con el Plan de Estudios (Syllabus) proporcionado en el contexto.
+      Evalúa si se cubrieron los temas esperados.
+      Responde ÚNICAMENTE con este JSON:
+      { 
+        "piaa_alignment": { 
+          "score": 85, 
+          "analisis": "Breve explicación de 2 frases sobre qué temas del syllabus se cubrieron y cuáles faltaron." 
+        } 
+      }
+      El score debe ser un número entre 0 y 100.
+    `;
+    const json = await this.llamarIA(prompt, transcripcion, 0.1, contexto);
+    return this.parsearJson(json, 'piaa_alignment');
   }
 
   // --- UTILIDADES GENÉRICAS ---
@@ -54,12 +83,18 @@ export class LmStudioAdapter implements IContentGenerator {
     systemPrompt: string,
     userContent: string,
     temp: number,
+    contexto?: string,
   ): Promise<string> {
-    const { data } = (await firstValueFrom(
+    let finalSystemPrompt = systemPrompt;
+    if (contexto) {
+      finalSystemPrompt += `\n\nCONTEXTO DEL PLAN DE ESTUDIOS (SYLLABUS):\n${contexto}\nUsa este contexto para mejorar la precisión y relevancia de tu respuesta.`;
+    }
+
+    const { data } = await firstValueFrom(
       this.httpService.post(this.apiUrl, {
         model: 'local-model',
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: finalSystemPrompt },
           { role: 'user', content: userContent },
         ],
         temperature: temp,

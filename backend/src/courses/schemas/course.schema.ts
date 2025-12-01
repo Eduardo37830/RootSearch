@@ -13,6 +13,12 @@ export class Course {
   description: string;
 
   @Prop({ required: false })
+  photo: string;
+
+  @Prop({ type: String, required: false })
+  piaa_syllabus: string;
+
+  @Prop({ required: false })
   pia: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
