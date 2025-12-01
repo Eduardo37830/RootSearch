@@ -57,7 +57,7 @@ export class UsersController {
   }
 
   @Get()
-  @Roles('administrador', 'docente') // Admin y Docente pueden ver usuarios
+  @Roles('administrador', 'docente')
   @ApiOperation({
     summary: 'Obtener todos los usuarios',
     description:

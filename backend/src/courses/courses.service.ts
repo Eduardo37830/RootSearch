@@ -94,6 +94,14 @@ export class CoursesService {
       .exec();
   }
 
+  async findAllCourses(): Promise<Course[]> {
+    return this.courseModel
+      .find()
+      .populate('teacher', 'name email')
+      .populate('students', 'name email')
+      .exec();
+  }
+
   async findOne(id: string): Promise<Course> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID de curso inválido');

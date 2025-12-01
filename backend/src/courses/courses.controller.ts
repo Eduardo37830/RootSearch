@@ -101,6 +101,25 @@ export class CoursesController {
     );
   }
 
+  @Get('all')
+  @Roles('administrador') // Solo administradores pueden ver todos los cursos
+  @ApiOperation({
+    summary: 'Obtener todos los cursos disponibles (Solo Admin)',
+    description:
+      'Obtiene la lista completa de todos los cursos en el sistema sin filtros. Este endpoint es exclusivo para administradores.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista completa de cursos obtenida exitosamente.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acceso denegado. Solo administradores.',
+  })
+  findAllCourses() {
+    return this.coursesService.findAllCourses();
+  }
+
   @Get()
   @Roles('administrador', 'docente', 'estudiante') // Todos los roles autenticados pueden ver cursos
   @ApiOperation({
