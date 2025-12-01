@@ -1,6 +1,158 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 /**
+ * Obtiene el total de estudiantes del sistema (solo administradores)
+ */
+export async function getTotalStudentsCount() {
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    const response = await fetch(`${API_URL}/users?role=estudiante`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error fetching students');
+    }
+
+    const students = await response.json();
+    return Array.isArray(students) ? students.length : 0;
+  } catch (error) {
+    console.error('Error in getTotalStudentsCount:', error);
+    return 0;
+  }
+}
+
+/**
+ * Obtiene el total de docentes del sistema (solo administradores)
+ */
+export async function getTotalTeachersCount() {
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    const response = await fetch(`${API_URL}/users?role=docente`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error fetching teachers');
+    }
+
+    const teachers = await response.json();
+    return Array.isArray(teachers) ? teachers.length : 0;
+  } catch (error) {
+    console.error('Error in getTotalTeachersCount:', error);
+    return 0;
+  }
+}
+
+/**
+ * Obtiene el total de cursos activos del sistema (solo administradores)
+ */
+export async function getTotalCoursesCount() {
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    const response = await fetch(`${API_URL}/courses`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error fetching courses');
+    }
+
+    const courses = await response.json();
+    return Array.isArray(courses) ? courses.length : 0;
+  } catch (error) {
+    console.error('Error in getTotalCoursesCount:', error);
+    return 0;
+  }
+}
+
+/**
+ * Obtiene estadísticas globales de todos los cursos del sistema (solo administradores)
+ * Incluye: promedio de estudiantes, curso con más/menos estudiantes
+ */
+export async function getGlobalCourseStatistics() {
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    const response = await fetch(`${API_URL}/courses`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error fetching courses');
+    }
+
+    const courses = await response.json();
+    
+    if (!Array.isArray(courses) || courses.length === 0) {
+      return {
+        averageStudents: 0,
+        courseWithMostStudents: null,
+        courseWithLeastStudents: null,
+      };
+    }
+
+    // Calcular número de estudiantes por curso
+    const coursesWithStudentCount = courses.map(course => ({
+      ...course,
+      studentCount: Array.isArray(course.students) ? course.students.length : 0,
+    }));
+
+    // Promedio de estudiantes
+    const totalStudents = coursesWithStudentCount.reduce((sum, course) => sum + course.studentCount, 0);
+    const averageStudents = totalStudents / courses.length;
+
+    // Curso con más estudiantes
+    const courseWithMostStudents = coursesWithStudentCount.reduce((max, course) => 
+      course.studentCount > max.studentCount ? course : max
+    );
+
+    // Curso con menos estudiantes
+    const courseWithLeastStudents = coursesWithStudentCount.reduce((min, course) => 
+      course.studentCount < min.studentCount ? course : min
+    );
+
+    return {
+      averageStudents: parseFloat(averageStudents.toFixed(1)),
+      courseWithMostStudents: {
+        name: courseWithMostStudents.name,
+        studentCount: courseWithMostStudents.studentCount,
+      },
+      courseWithLeastStudents: {
+        name: courseWithLeastStudents.name,
+        studentCount: courseWithLeastStudents.studentCount,
+      },
+    };
+  } catch (error) {
+    console.error('Error in getGlobalCourseStatistics:', error);
+    return {
+      averageStudents: 0,
+      courseWithMostStudents: null,
+      courseWithLeastStudents: null,
+    };
+  }
+}
+
+/**
  * Obtiene la cantidad de cursos que un profesor está impartiendo
  */
 export async function getTeacherCoursesCount(teacherId) {

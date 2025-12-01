@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
           <h2 className="text-3xl font-semibold text-white mb-2">Sign in</h2>
           <p className="text-zinc-300 mb-2">If you don't have an account register</p>
-          <p className="text-zinc-300 mb-6">You can <a href="/users/register" className="text-[#6356E5] font-semibold">Register here !</a></p>
+          <p className="text-zinc-300 mb-6">You can <a href="/auth/register" className="text-[#6356E5] font-semibold">Register here !</a></p>
           <form
             className="space-y-4"
             onSubmit={async (e) => {
@@ -50,7 +50,7 @@ export default function LoginPage() {
                 } else {
                   setToast({ show: true, message: "Login exitoso", type: "success" });
                   setTimeout(() => {
-                    router.push(`/users/verify?email=${encodeURIComponent(email)}`);
+                    router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
                   }, 800);
                 }
               } catch (err) {

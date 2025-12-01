@@ -43,3 +43,24 @@ export async function getUserInfoById(userId) {
     throw error;
   }
 }
+
+// Function to fetch homework/materials by student ID
+export async function getStudentMaterials(studentId) {
+  try {
+    const token = localStorage.getItem('access_token');
+    const res = await fetch(`${API_URL}/materials/${studentId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Error fetching materials: ${res.statusText}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('Failed to fetch student materials:', error);
+    throw error;
+  }
+}

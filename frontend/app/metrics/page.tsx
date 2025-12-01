@@ -10,6 +10,10 @@ import {
   getGeneratedMaterialsStats,
   getCourseStatistics,
   getCoursesWithoutMaterial,
+  getTotalStudentsCount,
+  getTotalTeachersCount,
+  getTotalCoursesCount,
+  getGlobalCourseStatistics,
 } from "@/services/metrics";
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
@@ -48,12 +52,14 @@ export default function MetricsPage() {
   const [metrics, setMetrics] = useState<{
     coursesCount: number;
     studentsCount: number;
+    teachersCount: number;
     materialsStats: MaterialsStats | null;
     courseStats: CourseStats | null;
     coursesWithoutMaterial: CourseWithoutMaterial[];
   }>({
     coursesCount: 0,
     studentsCount: 0,
+    teachersCount: 0,
     materialsStats: null,
     courseStats: null,
     coursesWithoutMaterial: [],
@@ -73,7 +79,26 @@ export default function MetricsPage() {
         setUser({ id: userData._id, name: userData.name, role });
 
         // Cargar métricas según el rol
-        if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
+        if (role.toLowerCase() === "administrador") {
+          // Para administradores: métricas globales del sistema
+          const [coursesCount, studentsCount, teachersCount, courseStats, materialsStats] = await Promise.all([
+            getTotalCoursesCount(),
+            getTotalStudentsCount(),
+            getTotalTeachersCount(),
+            getGlobalCourseStatistics(),
+            getGeneratedMaterialsStats(),
+          ]);
+
+          setMetrics({
+            coursesCount,
+            studentsCount,
+            teachersCount,
+            materialsStats,
+            courseStats,
+            coursesWithoutMaterial: [],
+          });
+        } else if (role.toLowerCase() === "docente") {
+          // Para docentes: métricas personales
           const [coursesCount, studentsCount, courseStats, coursesWithoutMaterial] = await Promise.all([
             getTeacherCoursesCount(userData._id),
             getTeacherUniqueStudentsCount(userData._id),
@@ -81,21 +106,14 @@ export default function MetricsPage() {
             getCoursesWithoutMaterial(userData._id),
           ]);
 
-          const metricsData = {
+          setMetrics({
             coursesCount,
             studentsCount,
-            materialsStats: null as MaterialsStats | null,
+            teachersCount: 0,
+            materialsStats: null,
             courseStats,
             coursesWithoutMaterial,
-          };
-
-          // Si es administrador, también obtener estadísticas de materiales
-          if (role.toLowerCase() === "administrador") {
-            const materialsStats = await getGeneratedMaterialsStats();
-            metricsData.materialsStats = materialsStats;
-          }
-
-          setMetrics(metricsData);
+          });
         }
       } catch (err) {
         const errorMessage =
@@ -104,7 +122,7 @@ export default function MetricsPage() {
             : "Error desconocido";
 
         setError("Error al obtener los datos del usuario: " + errorMessage);
-        router.push("/users/login");
+        router.push("/auth/login");
       } finally {
         setLoading(false);
       }
@@ -269,7 +287,7 @@ export default function MetricsPage() {
           </h1>
 
           {/* Métricas principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className={`grid grid-cols-1 ${user.role.toLowerCase() === 'administrador' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 mb-6`}>
             {/* Cantidad de Cursos */}
             <div className="bg-[#101434] rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
@@ -290,7 +308,9 @@ export default function MetricsPage() {
                 </div>
               </div>
               <p className="text-white/60 text-sm mt-4">
-                Total de cursos que estás impartiendo
+                {user.role.toLowerCase() === 'administrador' 
+                  ? 'Total de cursos en el sistema' 
+                  : 'Total de cursos que estás impartiendo'}
               </p>
             </div>
 
@@ -299,7 +319,7 @@ export default function MetricsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-white/70 text-sm font-medium mb-1">
-                    Estudiantes Únicos
+                    Estudiantes {user.role.toLowerCase() === 'docente' && 'Únicos'}
                   </p>
                   <p className="text-4xl font-bold text-[#7a6eff]">
                     {metrics.studentsCount}
@@ -314,9 +334,33 @@ export default function MetricsPage() {
                 </div>
               </div>
               <p className="text-white/60 text-sm mt-4">
-                Estudiantes diferentes a los que impartes clase
+                {user.role.toLowerCase() === 'administrador'
+                  ? 'Total de estudiantes registrados'
+                  : 'Estudiantes diferentes a los que impartes clase'}
               </p>
             </div>
+
+            {/* Cantidad de Docentes - Solo para administradores */}
+            {user.role.toLowerCase() === 'administrador' && (
+              <div className="bg-[#101434] rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white/70 text-sm font-medium mb-1">
+                      Docentes Activos
+                    </p>
+                    <p className="text-4xl font-bold text-[#28a745]">
+                      {metrics.teachersCount}
+                    </p>
+                  </div>
+                  <div className="bg-[#28a745] bg-opacity-20 rounded-full p-4">
+                    <span className="text-4xl">👨‍🏫</span>
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm mt-4">
+                  Total de docentes registrados
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Estadísticas de Cursos */}
@@ -334,7 +378,7 @@ export default function MetricsPage() {
                   {metrics.courseStats.averageStudents}
                 </p>
                 <p className="text-white/60 text-xs mt-2">
-                  Por curso
+                  Por curso {user.role.toLowerCase() === 'administrador' && '(global)'}
                 </p>
               </div>
 

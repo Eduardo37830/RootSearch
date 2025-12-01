@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 import Image from 'next/image';
-import { getAllCourses, getCourseById } from '../../../services/courses';
+import { getAllCourses, getAllCoursesForAdmin, getCourseById } from '../../../services/courses';
 import { getUserProfile } from '../../../services/users';
 import { uploadAudio } from '../../../services/audio';
 import { getGeneratedContentByCourse } from '../../../services/generated-content';
@@ -69,7 +69,16 @@ export default function CoursesListPage() {
     if (user) {
       try {
         setLoading(true);
-        const data = await getAllCourses(user.id);
+        let data;
+        
+        // Si es administrador, obtener todos los cursos
+        if (user.role.toLowerCase() === "administrador") {
+          data = await getAllCoursesForAdmin();
+        } else {
+          // Para docentes y estudiantes, usar la ruta normal con filtro de usuario
+          data = await getAllCourses(user.id);
+        }
+        
         setCourses(data);
       } catch (error) {
         console.error("Error al cargar cursos:", error);
@@ -254,28 +263,31 @@ export default function CoursesListPage() {
 
   if (user?.role === 'docente' || user?.role === 'administrador') {
     return (
-      <div className="flex min-h-screen bg-[#040418] text-white font-sans">
+      <div className="flex flex-col lg:flex-row min-h-screen bg-[#040418] text-white font-sans">
         <SideBar user={user} />
-        <main className="flex-1 p-8">
-          <div className="mb-8 flex items-center gap-4">
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <FaBook className="text-[#6356E5]" /> Listado de Cursos
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <div className="mb-6 sm:mb-8 flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <FaBook className="text-[#6356E5] text-xl sm:text-2xl" /> 
+              <span className="hidden sm:inline">Listado de Cursos</span>
+              <span className="sm:hidden">Cursos</span>
             </h1>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-[#6356E5] hover:bg-[#4f48c7] text-white font-bold w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer"
+              className="bg-[#6356E5] hover:bg-[#4f48c7] text-white font-bold w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-xl sm:text-2xl transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer"
               aria-label="Crear nuevo curso"
+              title="Crear nuevo curso"
             >
               +
             </button>
           </div>
           <div className="w-full overflow-x-auto rounded-lg shadow-lg bg-[#101434]">
-            <table className="min-w-[400px] w-full text-sm text-white">
+            <table className="min-w-[600px] w-full text-sm text-white">
               <thead className="bg-[#1a1a2e]">
                 <tr>
-                  <th className="py-3 px-4 text-left whitespace-nowrap">Nombre</th>
-                  <th className="py-3 px-4 text-left whitespace-nowrap">Descripción</th>
-                  <th className="py-3 px-6 text-center whitespace-nowrap">Acciones</th>
+                  <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Nombre</th>
+                  <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Descripción</th>
+                  <th className="py-2 sm:py-3 px-2 sm:px-4 text-center whitespace-nowrap text-xs sm:text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,42 +311,45 @@ export default function CoursesListPage() {
                       className="border-b border-[#333] hover:bg-[#2a2a3a] transition"
                     >
                       <td 
-                        className="py-3 px-4 whitespace-nowrap text-sm md:text-base cursor-pointer"
+                        className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base cursor-pointer"
                         onClick={() => window.location.href = `/courses/view?courseId=${course._id}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center text-xs sm:text-base">
                             {course.name.charAt(0).toUpperCase()}
                           </div>
-                          {course.name}
+                          <span className="truncate max-w-[120px] sm:max-w-[180px] md:max-w-none">{course.name}</span>
                         </div>
                       </td>
                       <td 
-                        className="py-3 px-4 text-sm md:text-base cursor-pointer"
+                        className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm md:text-base cursor-pointer"
                         onClick={() => window.location.href = `/courses/view?courseId=${course._id}`}
                       >
                         <span className="line-clamp-2">{course.description}</span>
                       </td>
-                      <td className="py-4 px-6" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-3 justify-center">
+                      <td className="py-2 sm:py-3 px-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                           <button
                             onClick={() => handleShowPiaa(course._id!, course.name)}
-                            className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                            className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-2 py-1 sm:px-4 sm:py-2 rounded-lg transition font-medium text-xs sm:text-sm cursor-pointer whitespace-nowrap"
                           >
-                            Mostrar PIAA
+                            <span className="hidden sm:inline">Mostrar PIAA</span>
+                            <span className="sm:hidden">PIAA</span>
                           </button>
                           <button
                             onClick={() => handleGenerateWithAI(course._id!, course.name)}
-                            className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                            className="bg-[#28a745] hover:bg-[#218838] text-white px-2 py-1 sm:px-4 sm:py-2 rounded-lg transition font-medium text-xs sm:text-sm cursor-pointer whitespace-nowrap"
                           >
-                            Generar con IA
+                            <span className="hidden sm:inline">Generar con IA</span>
+                            <span className="sm:hidden">IA</span>
                           </button>
                           <button
                             onClick={() => handleShowGeneratedContent(course._id!, course.name)}
                             disabled={loadingGeneratedContent}
-                            className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                            className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-2 py-1 sm:px-4 sm:py-2 rounded-lg transition font-medium text-xs sm:text-sm cursor-pointer whitespace-nowrap"
                           >
-                            Mostrar Contenido
+                            <span className="hidden sm:inline">Mostrar Contenido</span>
+                            <span className="sm:hidden">Contenido</span>
                           </button>
                         </div>
                       </td>
@@ -595,7 +610,7 @@ export default function CoursesListPage() {
           </button>
 
           {/* Cards Container */}
-          <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 w-full max-w-5xl overflow-hidden">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 w-full max-w-5xl py-4 sm:py-6 md:py-8">
             {loading ? (
               <div className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
                 <div className="bg-gradient-to-br from-[#6356E5] to-[#4f48c7] rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 lg:p-12 shadow-2xl h-64 sm:h-72 md:h-80 lg:h-96 flex flex-col justify-center items-center">
@@ -632,7 +647,12 @@ export default function CoursesListPage() {
                 >
                   <div
                     key={currentIndex}
-                    className={`bg-gradient-to-br from-[#6356E5] to-[#4f48c7] rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 lg:p-12 shadow-2xl h-64 sm:h-72 md:h-80 lg:h-96 flex flex-col justify-center transform transition-all duration-500 select-none ${
+                    onClick={() => {
+                      if (courses[currentIndex]?._id) {
+                        window.location.href = `/courses/view?courseId=${courses[currentIndex]._id}`;
+                      }
+                    }}
+                    className={`bg-gradient-to-br from-[#6356E5] to-[#4f48c7] rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 lg:p-12 shadow-2xl h-64 sm:h-72 md:h-80 lg:h-96 flex flex-col justify-center transform transition-all duration-500 select-none cursor-pointer hover:scale-105 hover:shadow-3xl active:scale-95 ${
                       isAnimating
                         ? direction === 'right'
                           ? 'animate-slide-from-right'

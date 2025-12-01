@@ -4,12 +4,14 @@ import React from "react";
 import SideBar from "@/components/SideBar";
 import { getUserProfile } from "@/services/users";
 import { getAllStudents } from "@/services/students";
-import { getCoursesByTeacher, getCourseById } from "@/services/courses";
+import { getCoursesByTeacher, getCourseById, getAllCoursesForAdmin } from "@/services/courses";
 import { uploadAudio } from "@/services/audio";
 import { getGeneratedContentByCourse } from "@/services/generated-content";
 import {
   getTeacherCoursesCount,
   getTeacherUniqueStudentsCount,
+  getTotalCoursesCount,
+  getTotalStudentsCount,
 } from "@/services/metrics";
 import Toast from "@/components/Toast";
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
@@ -71,15 +73,60 @@ export default function Dashboard() {
 
         if (!role || !["docente", "estudiante", "administrador"].includes(role.toLowerCase())) {
           setError("No tienes permisos para acceder a esta sección.");
+          setLoading(false);
           return;
         }
 
         setUser({ id: userData._id, name: userData.name, role });
 
+        // Cargar estudiantes si es necesario
         if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
           const studentsData = await getAllStudents();
           setStudents(studentsData);
+          
+          // Cargar cursos y métricas
+          let courses: Course[] = [];
+          
+          if (role.toLowerCase() === "administrador") {
+            // Para administradores: obtener todos los cursos del sistema
+            courses = await getAllCoursesForAdmin();
+            
+            // Métricas globales para administradores
+            const [coursesCount, studentsCount] = await Promise.all([
+              getTotalCoursesCount(),
+              getTotalStudentsCount(),
+            ]);
+            
+            setMetrics({
+              coursesCount,
+              studentsCount,
+            });
+          } else {
+            // Para docentes: obtener solo sus cursos
+            courses = await getCoursesByTeacher(userData._id);
+            
+            // Métricas personales para docentes
+            const [coursesCount, studentsCount] = await Promise.all([
+              getTeacherCoursesCount(userData._id),
+              getTeacherUniqueStudentsCount(userData._id),
+            ]);
+            
+            setMetrics({
+              coursesCount,
+              studentsCount,
+            });
+          }
+          
+          // Ordenar por fecha de creación (más recientes primero)
+          const sortedCourses = courses.sort((a: any, b: any) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          
+          setTeacherCourses(sortedCourses);
         }
+        
+        // Solo cuando TODO esté listo, quitar el loading
+        setLoading(false);
       } catch (err) {
         const errorMessage =
           typeof err === "object" && err !== null && "message" in err
@@ -88,33 +135,11 @@ export default function Dashboard() {
 
         setToast({ message: "Error al cargar datos: " + errorMessage, type: "error" });
         setError("Error al obtener los datos del usuario o estudiantes.");
-      } finally {
         setLoading(false);
       }
     }
     fetchData();
   }, []);
-
-  useEffect(() => {
-    async function fetchTeacherCourses() {
-      if ((user?.role.toLowerCase() === "docente" || user?.role.toLowerCase() === "administrador") && user.id) {
-        const courses: Course[] = await getCoursesByTeacher(user.id);
-        setTeacherCourses(courses);
-        
-        // Cargar métricas
-        const [coursesCount, studentsCount] = await Promise.all([
-          getTeacherCoursesCount(user.id),
-          getTeacherUniqueStudentsCount(user.id),
-        ]);
-        
-        setMetrics({
-          coursesCount,
-          studentsCount,
-        });
-      }
-    }
-    fetchTeacherCourses();
-  }, [user]);
 
   const toggleCourseExpansion = (courseId: string) => {
     setExpandedCourses((prev) => {
@@ -223,17 +248,6 @@ export default function Dashboard() {
     setShowGeneratedContentListModal(false);
     setShowGeneratedContentModal(true);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
-        <div className="text-center">
-          <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5] mx-auto mb-4" />
-          <span className="text-lg">Cargando...</span>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -366,7 +380,9 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <p className="text-white/60 text-sm mt-3">
-                  Total de cursos que estás impartiendo
+                  {user?.role.toLowerCase() === "administrador"
+                    ? "Total de cursos activos en el sistema"
+                    : "Total de cursos que estás impartiendo"}
                 </p>
               </div>
 
@@ -375,7 +391,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-white/70 text-sm font-medium mb-1">
-                      Estudiantes Únicos
+                      {user?.role.toLowerCase() === "administrador" ? "Estudiantes Totales" : "Estudiantes Únicos"}
                     </p>
                     <p className="text-4xl font-bold text-[#7a6eff]">
                       {metrics.studentsCount}
@@ -390,7 +406,9 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <p className="text-white/60 text-sm mt-3">
-                  Estudiantes diferentes a los que impartes clase
+                  {user?.role.toLowerCase() === "administrador"
+                    ? "Total de estudiantes inscritos en el sistema"
+                    : "Estudiantes diferentes a los que impartes clase"}
                 </p>
               </div>
             </div>
