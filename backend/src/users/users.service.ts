@@ -8,8 +8,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../auth/schemas/user.schema';
 import { Role, RoleDocument } from '../auth/schemas/role.schema';
+import { Course, CourseDocument } from '../courses/schemas/course.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import {
+  TeacherCourseInfoDto,
+} from './dto/teacher-course-info.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -17,6 +21,7 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @InjectModel(Course.name) private courseModel: Model<CourseDocument>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -172,6 +177,39 @@ export class UsersService {
     if (!result) {
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
+  }
+
+  async getMyTeachers(studentId: string): Promise<TeacherCourseInfoDto[]> {
+    if (!Types.ObjectId.isValid(studentId)) {
+      throw new BadRequestException('ID de estudiante inválido');
+    }
+
+    // Verificar que el usuario existe
+    const student = await this.userModel.findById(studentId).exec();
+    if (!student) {
+      throw new NotFoundException('Estudiante no encontrado');
+    }
+
+    // Buscar todos los cursos en los que está inscrito el estudiante
+    const courses = await this.courseModel
+      .find({ students: new Types.ObjectId(studentId) })
+      .populate('teacher', 'name email')
+      .exec();
+
+    // Mapear a DTOs con información del profesor
+    const teacherCourseInfo: TeacherCourseInfoDto[] = courses.map((course) => {
+      const teacher = course.teacher as any;
+
+      const result: TeacherCourseInfoDto = {
+        courseName: course.name,
+        teacherName: teacher.name,
+        teacherEmail: teacher.email,
+      };
+
+      return result;
+    });
+
+    return teacherCourseInfo;
   }
 
   private sanitizeUser(user: UserDocument): User {
