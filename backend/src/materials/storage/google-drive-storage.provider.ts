@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { IFileStorage, StoreFileResult } from './file-storage.interface';
+import { FileStreamResult, IFileStorage, StoreFileResult } from './file-storage.interface';
 import { google } from 'googleapis';
 import { Express } from 'express';
 import { Readable } from 'stream';
@@ -101,5 +101,51 @@ export class GoogleDriveStorageProvider implements IFileStorage {
   getAccessUrl(ref: string): string {
     // En este caso, 'ref' ya es el webViewLink
     return ref;
+  }
+
+  private extractFileId(ref: string): string | null {
+    if (!ref) return null;
+    // Si es ya un id simple
+    if (/^[a-zA-Z0-9_-]{20,}$/.test(ref)) return ref;
+    // webViewLink: https://drive.google.com/file/d/<id>/view?usp=...
+    const dMatch = ref.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (dMatch && dMatch[1]) return dMatch[1];
+    // webContentLink: https://drive.google.com/uc?id=<id>&export=download
+    const idParam = ref.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idParam && idParam[1]) return idParam[1];
+    return null;
+  }
+
+  async getFileStream(ref: string): Promise<FileStreamResult> {
+    if (!this.driveClient) {
+      await this.initializeClient();
+    }
+
+    const fileId = this.extractFileId(ref);
+    if (!fileId) {
+      throw new Error('No se pudo determinar el ID de archivo de Google Drive');
+    }
+
+    // Obtener metadatos para nombre y tipo
+    const meta = await this.driveClient.files.get({
+      fileId,
+      fields: 'id, name, mimeType, size',
+      supportsAllDrives: true,
+    });
+    const name = meta.data.name || 'file';
+    const mime = meta.data.mimeType || 'application/octet-stream';
+    const size = meta.data.size ? Number(meta.data.size) : undefined;
+
+    // Obtener stream del contenido
+    const resp = await this.driveClient.files.get(
+      {
+        fileId,
+        alt: 'media',
+        supportsAllDrives: true,
+      },
+      { responseType: 'stream' },
+    );
+
+    return { stream: resp.data as NodeJS.ReadableStream, filename: name, mime, size };
   }
 }

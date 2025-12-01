@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { CourseMaterial } from '../schemas/course-material.schema';
 import { IMaterialUploadStrategy, MATERIAL_UPLOAD_STRATEGIES } from '../interfaces/material-upload-strategy.interface';
 import { FILE_STORAGE, IFileStorage } from '../storage/file-storage.interface';
+import { Response } from 'express';
 import * as path from 'path';
 
 interface UploadResult {
@@ -71,5 +72,36 @@ export class MaterialUploadService {
       });
     }
     return results;
+  }
+
+  async getAccessUrlById(id: string): Promise<{ accessUrl: string; material: CourseMaterial }> {
+    const material = await this.materialModel.findById(id).exec();
+    if (!material) {
+      throw new Error('Material no encontrado');
+    }
+    const accessUrl = this.storage.getAccessUrl(material.storageRef);
+    return { accessUrl, material };
+  }
+
+  async getAccessUrlByTitle(title: string, courseId?: string): Promise<{ accessUrl: string; material: CourseMaterial }> {
+    const filter: any = { title };
+    if (courseId) filter.courseId = courseId;
+    const material = await this.materialModel.findOne(filter).exec();
+    if (!material) {
+      throw new Error('Material no encontrado por título');
+    }
+    const accessUrl = this.storage.getAccessUrl(material.storageRef);
+    return { accessUrl, material };
+  }
+
+  async streamById(id: string, res: Response): Promise<void> {
+    const material = await this.materialModel.findById(id).exec();
+    if (!material) throw new Error('Material no encontrado');
+    const { stream, filename, mime, size } = await this.storage.getFileStream(material.storageRef);
+    if (mime) res.setHeader('Content-Type', mime);
+    if (size) res.setHeader('Content-Length', String(size));
+    const safeName = filename || material.originalName || material.filename || 'file';
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    stream.pipe(res);
   }
 }

@@ -168,7 +168,7 @@ export class MaterialsController {
     return this.materialsService.remove(id);
   }
 
-  // ================= NUEVO: Upload de materiales de curso =================
+  // ================= Upload de materiales de curso =================
   @Post('courses/:courseId/upload')
   @Roles('administrador', 'docente')
   @ApiOperation({ summary: 'Subir materiales (PDF, PPTX, VIDEO) al curso' })
@@ -227,5 +227,32 @@ export class MaterialsController {
       status: m.status,
       accessUrl: m.storageRef,
     }));
+  }
+
+  // ================= Acceso y descarga de materiales de curso =================
+  @Get('courses/materials/:id/access')
+  @Roles('administrador', 'docente', 'estudiante')
+  @ApiOperation({ summary: 'Obtener el enlace de acceso por ID de material de curso' })
+  async getAccessUrlById(@Param('id') id: string) {
+    const { accessUrl } = await this.uploadService.getAccessUrlById(id);
+    return { id, accessUrl };
+  }
+
+  @Get('courses/materials/access')
+  @Roles('administrador', 'docente', 'estudiante')
+  @ApiOperation({ summary: 'Obtener el enlace de acceso por título (opcionalmente filtrando por curso)' })
+  @ApiQuery({ name: 'title', required: true })
+  @ApiQuery({ name: 'courseId', required: false })
+  async getAccessUrlByTitle(@Query('title') title: string, @Query('courseId') courseId?: string) {
+    const { accessUrl, material } = await this.uploadService.getAccessUrlByTitle(title, courseId);
+    return { id: String(material._id), title: material.title, accessUrl };
+  }
+
+  @Get('courses/materials/:id/download')
+  @Roles('administrador', 'docente', 'estudiante')
+  @ApiOperation({ summary: 'Redirige a la descarga/visualización del material de curso por ID' })
+  @ApiResponse({ status: 200, description: 'Descarga del archivo', content: { 'application/octet-stream': {} } })
+  async downloadById(@Param('id') id: string, @Res() res: Response) {
+    await this.uploadService.streamById(id, res);
   }
 }
