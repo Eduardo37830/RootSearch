@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import React from 'react';
 import Image from 'next/image';
-import { getAllCourses } from '../../../services/courses';
+import { getAllCourses, getCourseById } from '../../../services/courses';
 import { getUserProfile } from '../../../services/users';
+import { uploadAudio } from '../../../services/audio';
+import { getGeneratedContentByCourse } from '../../../services/generated-content';
 import SideBar from '@/components/SideBar';
 import CreateCourseModal from '@/components/create_course';
+import Toast from '@/components/Toast';
 import { FaBook } from 'react-icons/fa';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
@@ -27,6 +31,25 @@ export default function CoursesListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "error" } | null>(null);
+  const [showPiaaModal, setShowPiaaModal] = useState(false);
+  const [selectedCoursePiaa, setSelectedCoursePiaa] = useState<{ name: string; content: string } | null>(null);
+  const [showGeneratedContentModal, setShowGeneratedContentModal] = useState(false);
+  const [showGeneratedContentListModal, setShowGeneratedContentListModal] = useState(false);
+  const [generatedContentsList, setGeneratedContentsList] = useState<any[]>([]);
+  const [selectedGeneratedContent, setSelectedGeneratedContent] = useState<{
+    _id: string;
+    name: string;
+    resumen: string;
+    glosario: any[];
+    quiz: any[];
+    checklist: any[];
+    estado: string;
+    index: number;
+  } | null>(null);
+  const [loadingGeneratedContent, setLoadingGeneratedContent] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<"resumen" | "glosario" | "quiz" | "checklist">("resumen");
+  const [selectedCourseForContent, setSelectedCourseForContent] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     async function fetchUser() {
@@ -63,6 +86,92 @@ export default function CoursesListPage() {
 
   const handleModalSuccess = () => {
     fetchCourses(); // Recargar la lista de cursos después de crear uno nuevo
+  };
+
+  const handleGenerateWithAI = async (courseId: string, courseName: string) => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'audio/*';
+    
+    fileInput.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        setToast({ message: 'No se seleccionó ningún archivo', type: 'error' });
+        return;
+      }
+
+      try {
+        setToast({ message: 'Cargando audio...', type: 'info' });
+        const result = await uploadAudio(courseId, file);
+        setToast({ message: `Audio cargado exitosamente para: ${courseName}`, type: 'success' });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        setToast({ message: `Error al cargar audio: ${errorMessage}`, type: 'error' });
+      }
+    };
+
+    fileInput.click();
+  };
+
+  const handleShowPiaa = async (courseId: string, courseName: string) => {
+    try {
+      const courseDetails = await getCourseById(courseId);
+      if (courseDetails.piaa_syllabus) {
+        setSelectedCoursePiaa({
+          name: courseName,
+          content: courseDetails.piaa_syllabus,
+        });
+        setShowPiaaModal(true);
+      } else {
+        setToast({
+          message: `No hay contenido PIAA disponible para: ${courseName}`,
+          type: 'info',
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al obtener PIAA: ${errorMessage}`, type: 'error' });
+    }
+  };
+
+  const handleShowGeneratedContent = async (courseId: string, courseName: string) => {
+    try {
+      setLoadingGeneratedContent(true);
+      setSelectedTab("resumen");
+      setSelectedCourseForContent({ id: courseId, name: courseName });
+      
+      const response = await getGeneratedContentByCourse(courseId);
+      
+      if (Array.isArray(response) && response.length > 0) {
+        setGeneratedContentsList(response);
+        setShowGeneratedContentListModal(true);
+      } else {
+        setToast({
+          message: `No hay contenido generado disponible para: ${courseName}`,
+          type: 'info',
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al obtener contenido generado: ${errorMessage}`, type: 'error' });
+    } finally {
+      setLoadingGeneratedContent(false);
+    }
+  };
+
+  const handleSelectGeneratedContent = (content: any, index: number) => {
+    setSelectedGeneratedContent({
+      _id: content._id,
+      name: selectedCourseForContent?.name || "Curso",
+      resumen: content.resumen || "No hay resumen disponible",
+      glosario: content.glosario || [],
+      quiz: content.quiz || [],
+      checklist: content.checklist || [],
+      estado: content.estado || "DESCONOCIDO",
+      index: index + 1,
+    });
+    setShowGeneratedContentListModal(false);
+    setShowGeneratedContentModal(true);
   };
 
   // Mínima distancia de swipe requerida (en px)
@@ -166,7 +275,7 @@ export default function CoursesListPage() {
                 <tr>
                   <th className="py-3 px-4 text-left whitespace-nowrap">Nombre</th>
                   <th className="py-3 px-4 text-left whitespace-nowrap">Descripción</th>
-                  <th className="py-3 px-4 text-left whitespace-nowrap">Fecha de creación</th>
+                  <th className="py-3 px-6 text-center whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -187,20 +296,47 @@ export default function CoursesListPage() {
                   courses.map((course, idx) => (
                     <tr
                       key={course._id || idx}
-                      className="border-b border-[#333] cursor-pointer hover:bg-[#2a2a3a] transition"
-                      onClick={() => window.location.href = `/courses/view?courseId=${course._id}`}
+                      className="border-b border-[#333] hover:bg-[#2a2a3a] transition"
                     >
-                      <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base flex items-center gap-3">
-                        <div className="w-8 h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center">
-                          {course.name.charAt(0).toUpperCase()}
+                      <td 
+                        className="py-3 px-4 whitespace-nowrap text-sm md:text-base cursor-pointer"
+                        onClick={() => window.location.href = `/courses/view?courseId=${course._id}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center">
+                            {course.name.charAt(0).toUpperCase()}
+                          </div>
+                          {course.name}
                         </div>
-                        {course.name}
                       </td>
-                      <td className="py-3 px-4 text-sm md:text-base">
+                      <td 
+                        className="py-3 px-4 text-sm md:text-base cursor-pointer"
+                        onClick={() => window.location.href = `/courses/view?courseId=${course._id}`}
+                      >
                         <span className="line-clamp-2">{course.description}</span>
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base">
-                        {course.createdAt ? new Date(course.createdAt).toLocaleDateString() : 'N/A'}
+                      <td className="py-4 px-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-3 justify-center">
+                          <button
+                            onClick={() => handleShowPiaa(course._id!, course.name)}
+                            className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                          >
+                            Mostrar PIAA
+                          </button>
+                          <button
+                            onClick={() => handleGenerateWithAI(course._id!, course.name)}
+                            className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                          >
+                            Generar con IA
+                          </button>
+                          <button
+                            onClick={() => handleShowGeneratedContent(course._id!, course.name)}
+                            disabled={loadingGeneratedContent}
+                            className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                          >
+                            Mostrar Contenido
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -217,6 +353,201 @@ export default function CoursesListPage() {
           onSuccess={handleModalSuccess}
           teacherId={user.id}
         />
+
+        {/* Modal PIAA */}
+        {showPiaaModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4 text-white">
+                PIAA - {selectedCoursePiaa?.name || ''}
+              </h2>
+              {selectedCoursePiaa?.content ? (
+                <div className="text-white">
+                  <pre className="whitespace-pre-wrap bg-[#1a1a2e] p-4 rounded-lg">{selectedCoursePiaa.content}</pre>
+                </div>
+              ) : (
+                <p className="text-zinc-400">No hay PIAA disponible para este curso.</p>
+              )}
+              <button
+                onClick={() => setShowPiaaModal(false)}
+                className="mt-6 bg-[#6356E5] hover:bg-[#4f48c7] text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Lista de contenido generado */}
+        {showGeneratedContentListModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4 text-white">
+                Contenido Generado - {selectedCourseForContent?.name || ''}
+              </h2>
+              {loadingGeneratedContent ? (
+                <div className="flex justify-center py-6">
+                  <AiOutlineLoading3Quarters className="animate-spin text-3xl text-[#6356E5]" />
+                </div>
+              ) : generatedContentsList && generatedContentsList.length > 0 ? (
+                <div className="space-y-3">
+                  {generatedContentsList.map((content: any) => (
+                    <div
+                      key={content._id}
+                      onClick={() => handleSelectGeneratedContent(content, generatedContentsList.indexOf(content))}
+                      className="bg-[#1a1a2e] hover:bg-[#2a2a3a] p-4 rounded-lg transition cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-white font-semibold">{content.tematica}</h3>
+                          <p className="text-zinc-400 text-sm mt-1">{content.tipo_material}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          content.estado === 'PUBLICADO' 
+                            ? 'bg-green-500/20 text-green-400'
+                            : content.estado === 'PENDIENTE_REVISION'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {content.estado}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-zinc-400 text-center py-6">
+                  No hay contenido generado para este curso.
+                </p>
+              )}
+              <button
+                onClick={() => setShowGeneratedContentListModal(false)}
+                className="mt-6 bg-[#6356E5] hover:bg-[#4f48c7] text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer w-full"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Detalle del contenido generado */}
+        {showGeneratedContentModal && selectedGeneratedContent && !showGeneratedContentListModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4 text-white">
+                {selectedGeneratedContent.name}
+              </h2>
+              <div className="mb-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  selectedGeneratedContent.estado === 'PUBLICADO' 
+                    ? 'bg-green-500/20 text-green-400'
+                    : selectedGeneratedContent.estado === 'PENDIENTE_REVISION'
+                    ? 'bg-yellow-500/20 text-yellow-400'
+                    : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {selectedGeneratedContent.estado}
+                </span>
+              </div>
+
+              {/* Pestañas */}
+              <div className="flex gap-2 mb-4 border-b border-[#333]">
+                <button
+                  onClick={() => setSelectedTab('resumen')}
+                  className={`px-4 py-2 font-medium transition cursor-pointer ${
+                    selectedTab === 'resumen'
+                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Resumen
+                </button>
+                <button
+                  onClick={() => setSelectedTab('glosario')}
+                  className={`px-4 py-2 font-medium transition cursor-pointer ${
+                    selectedTab === 'glosario'
+                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Glosario
+                </button>
+                <button
+                  onClick={() => setSelectedTab('quiz')}
+                  className={`px-4 py-2 font-medium transition cursor-pointer ${
+                    selectedTab === 'quiz'
+                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Quiz
+                </button>
+                <button
+                  onClick={() => setSelectedTab('checklist')}
+                  className={`px-4 py-2 font-medium transition cursor-pointer ${
+                    selectedTab === 'checklist'
+                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Checklist
+                </button>
+              </div>
+
+              {/* Contenido de las pestañas */}
+              <div className="text-white">
+                {selectedTab === 'resumen' && (
+                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
+                    <pre className="whitespace-pre-wrap">{selectedGeneratedContent.resumen || 'No disponible'}</pre>
+                  </div>
+                )}
+                {selectedTab === 'glosario' && (
+                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
+                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedGeneratedContent.glosario, null, 2) || 'No disponible'}</pre>
+                  </div>
+                )}
+                {selectedTab === 'quiz' && (
+                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
+                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedGeneratedContent.quiz, null, 2) || 'No disponible'}</pre>
+                  </div>
+                )}
+                {selectedTab === 'checklist' && (
+                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
+                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedGeneratedContent.checklist, null, 2) || 'No disponible'}</pre>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setSelectedGeneratedContent(null);
+                    setShowGeneratedContentListModal(true);
+                  }}
+                  className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer"
+                >
+                  Volver
+                </button>
+                <button
+                  onClick={() => {
+                    setShowGeneratedContentModal(false);
+                    setSelectedGeneratedContent(null);
+                  }}
+                  className="flex-1 bg-[#6356E5] hover:bg-[#4f48c7] text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     );
   }

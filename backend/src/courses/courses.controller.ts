@@ -57,7 +57,11 @@ export class CoursesController {
         name: { type: 'string' },
         description: { type: 'string' },
         teacherId: { type: 'string' },
-        studentIds: { type: 'array', items: { type: 'string' } },
+        studentIds: { 
+          type: 'string',
+          description: 'IDs de estudiantes separados por comas',
+          example: '507f1f77bcf86cd799439012,507f1f77bcf86cd799439013'
+        },
         piaa_syllabus: { type: 'string' },
         file: {
           type: 'string',

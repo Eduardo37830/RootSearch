@@ -1,44 +1,44 @@
 "use client";
-import { useEffect, useState } from "react";
-import React from "react";
-import SideBar from "@/components/SideBar";
-import { getUserProfile } from "@/services/users";
-import { getAllStudents } from "@/services/students";
-import { getCoursesByTeacher, getCourseById } from "@/services/courses";
-import { uploadAudio } from "@/services/audio";
-import { getGeneratedContentByCourse } from "@/services/generated-content";
-import {
-  getTeacherCoursesCount,
-  getTeacherUniqueStudentsCount,
-} from "@/services/metrics";
-import Toast from "@/components/Toast";
-import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
-type Student = {
-  _id: string;
-  name: string;
-  email?: string;
-};
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { getCourseById } from '../../../services/courses';
+import { getUserProfile } from '../../../services/users';
+import { uploadAudio } from '../../../services/audio';
+import { getGeneratedContentByCourse } from '../../../services/generated-content';
+import SideBar from '@/components/SideBar';
+import Toast from '@/components/Toast';
+import { FaBook, FaUser, FaCalendar, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 type Course = {
   _id: string;
   name: string;
-  description?: string;
-  teacher: string | { _id: string; name?: string; email?: string };
-  students?: Student[] | string[];
+  description: string;
+  teacher: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  students: Array<{
+    _id: string;
+    name: string;
+    email: string;
+  }>;
+  piaa_syllabus?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
-export default function Dashboard() {
+export default function CourseViewPage() {
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get('courseId');
+  
   const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);
-  const [students, setStudents] = useState([]);
-  const [teacherCourses, setTeacherCourses] = useState<Course[]>([]);
+  const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "error" } | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
-  const [showPiaaModal, setShowPiaaModal] = useState(false);
-  const [selectedCoursePiaa, setSelectedCoursePiaa] = useState<{ name: string; content: string } | null>(null);
   const [showGeneratedContentModal, setShowGeneratedContentModal] = useState(false);
   const [showGeneratedContentListModal, setShowGeneratedContentListModal] = useState(false);
   const [generatedContentsList, setGeneratedContentsList] = useState<any[]>([]);
@@ -54,91 +54,49 @@ export default function Dashboard() {
   } | null>(null);
   const [loadingGeneratedContent, setLoadingGeneratedContent] = useState(false);
   const [selectedTab, setSelectedTab] = useState<"resumen" | "glosario" | "quiz" | "checklist">("resumen");
-  const [selectedCourseForContent, setSelectedCourseForContent] = useState<{ id: string; name: string } | null>(null);
-  const [metrics, setMetrics] = useState<{
-    coursesCount: number;
-    studentsCount: number;
-  }>({
-    coursesCount: 0,
-    studentsCount: 0,
-  });
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchUser() {
       try {
         const userData = await getUserProfile();
-        const role = userData.roles?.[0]?.name || null;
-
-        if (!role || !["docente", "estudiante", "administrador"].includes(role.toLowerCase())) {
-          setError("No tienes permisos para acceder a esta sección.");
-          return;
-        }
-
+        const role = userData.roles?.[0]?.name || "";
         setUser({ id: userData._id, name: userData.name, role });
+      } catch (error) {
+        console.error("Error al obtener el perfil del usuario:", error);
+        setError("Error al cargar el perfil del usuario");
+      }
+    }
+    fetchUser();
+  }, []);
 
-        if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
-          const studentsData = await getAllStudents();
-          setStudents(studentsData);
-        }
-      } catch (err) {
-        const errorMessage =
-          typeof err === "object" && err !== null && "message" in err
-            ? (err as { message?: string }).message ?? "Error desconocido"
-            : "Error desconocido";
+  useEffect(() => {
+    async function fetchCourse() {
+      if (!courseId) {
+        setError("No se proporcionó un ID de curso");
+        setLoading(false);
+        return;
+      }
 
-        setToast({ message: "Error al cargar datos: " + errorMessage, type: "error" });
-        setError("Error al obtener los datos del usuario o estudiantes.");
+      try {
+        setLoading(true);
+        const courseData = await getCourseById(courseId);
+        setCourse(courseData);
+      } catch (error) {
+        console.error("Error al cargar el curso:", error);
+        setError("Error al cargar los datos del curso");
       } finally {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
 
-  useEffect(() => {
-    async function fetchTeacherCourses() {
-      if ((user?.role.toLowerCase() === "docente" || user?.role.toLowerCase() === "administrador") && user.id) {
-        const courses: Course[] = await getCoursesByTeacher(user.id);
-        setTeacherCourses(courses);
-        
-        // Cargar métricas
-        const [coursesCount, studentsCount] = await Promise.all([
-          getTeacherCoursesCount(user.id),
-          getTeacherUniqueStudentsCount(user.id),
-        ]);
-        
-        setMetrics({
-          coursesCount,
-          studentsCount,
-        });
-      }
+    if (user) {
+      fetchCourse();
     }
-    fetchTeacherCourses();
-  }, [user]);
+  }, [courseId, user]);
 
-  const toggleCourseExpansion = (courseId: string) => {
-    setExpandedCourses((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(courseId)) {
-        newSet.delete(courseId);
-      } else {
-        newSet.add(courseId);
-      }
-      return newSet;
-    });
-  };
+  const handleGenerateWithAI = async () => {
+    if (!courseId || !course) return;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
-        <div className="text-center">
-          <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5] mx-auto mb-4" />
-          <span className="text-lg">Cargando...</span>
-        </div>
-      </div>
-    );
-  }
-  const handleGenerateWithAI = async (courseId: string, courseName: string) => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'audio/*';
@@ -152,8 +110,8 @@ export default function Dashboard() {
 
       try {
         setToast({ message: 'Cargando audio...', type: 'info' });
-        const result = await uploadAudio(courseId, file);
-        setToast({ message: `Audio cargado exitosamente para: ${courseName}`, type: 'success' });
+        await uploadAudio(courseId, file);
+        setToast({ message: `Audio cargado exitosamente para: ${course.name}`, type: 'success' });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         setToast({ message: `Error al cargar audio: ${errorMessage}`, type: 'error' });
@@ -163,32 +121,12 @@ export default function Dashboard() {
     fileInput.click();
   };
 
-  const handleShowPiaa = async (courseId: string, courseName: string) => {
-    try {
-      const courseDetails = await getCourseById(courseId);
-      if (courseDetails.piaa_syllabus) {
-        setSelectedCoursePiaa({
-          name: courseName,
-          content: courseDetails.piaa_syllabus,
-        });
-        setShowPiaaModal(true);
-      } else {
-        setToast({
-          message: `No hay contenido PIAA disponible para: ${courseName}`,
-          type: 'info',
-        });
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      setToast({ message: `Error al obtener PIAA: ${errorMessage}`, type: 'error' });
-    }
-  };
+  const handleShowGeneratedContent = async () => {
+    if (!courseId || !course) return;
 
-  const handleShowGeneratedContent = async (courseId: string, courseName: string) => {
     try {
       setLoadingGeneratedContent(true);
       setSelectedTab("resumen");
-      setSelectedCourseForContent({ id: courseId, name: courseName });
       
       const response = await getGeneratedContentByCourse(courseId);
       
@@ -197,7 +135,7 @@ export default function Dashboard() {
         setShowGeneratedContentListModal(true);
       } else {
         setToast({
-          message: `No hay contenido generado disponible para: ${courseName}`,
+          message: `No hay contenido generado disponible para este curso`,
           type: 'info',
         });
       }
@@ -212,7 +150,7 @@ export default function Dashboard() {
   const handleSelectGeneratedContent = (content: any, index: number) => {
     setSelectedGeneratedContent({
       _id: content._id,
-      name: selectedCourseForContent?.name || "Curso",
+      name: course?.name || "Curso",
       resumen: content.resumen || "No hay resumen disponible",
       glosario: content.glosario || [],
       quiz: content.quiz || [],
@@ -229,236 +167,201 @@ export default function Dashboard() {
       <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
         <div className="text-center">
           <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5] mx-auto mb-4" />
-          <span className="text-lg">Cargando...</span>
+          <span className="text-lg">Cargando curso...</span>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !course) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">⚠️ Acceso Denegado</h1>
-          <p className="text-zinc-300">{error}</p>
+          <h1 className="text-2xl font-semibold mb-2">⚠️ Error</h1>
+          <p className="text-zinc-300 mb-4">{error || "No se pudo cargar el curso"}</p>
           <a
-            href="/"
-            className="mt-4 inline-block bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition"
+            href="/courses/list"
+            className="inline-block bg-[#6356E5] hover:bg-[#4f48c7] text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer"
           >
-            Volver al inicio
+            Volver a la lista
           </a>
         </div>
       </div>
     );
   }
 
-
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-[#040418] text-black">
-      <SideBar user={user!} />
-
-      <main className="flex-1 flex flex-col gap-4 p-6">
-        {user?.role.toLowerCase() === "docente"||user?.role.toLowerCase() === "administrador" ? (
-          <>
-            <div className="w-full">
-              {teacherCourses.length > 0 ? (
-                <div className="bg-[#101434] rounded-lg shadow overflow-x-auto">
-                  <table className="w-full text-sm text-white">
-                    <thead>
-                      <tr className="border-b border-[#2a2a4a] bg-[#0f0f2e]">
-                        <th className="px-6 py-4 text-left font-semibold">Nombre del curso</th>
-                        <th className="px-6 py-4 text-left font-semibold">Estudiantes Asignados</th>
-                        <th className="px-6 py-4 text-center font-semibold"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {teacherCourses.slice(0, 5).map((course) => (
-                        <React.Fragment key={course._id}>
-                          <tr className="border-b border-[#2a2a4a] hover:bg-[#151540] transition">
-                            <td className="px-6 py-4 font-medium">{course.name}</td>
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={() => toggleCourseExpansion(course._id)}
-                                className="text-[#6356E5] hover:text-[#7a6eff] font-medium cursor-pointer flex items-center gap-2 transition"
-                              >
-                                <span>{expandedCourses.has(course._id) ? '▼' : '▶'}</span>
-                                <span>
-                                  {Array.isArray(course.students) && course.students.length > 0
-                                    ? `${course.students.length} estudiante${course.students.length > 1 ? 's' : ''}`
-                                    : 'Sin estudiantes'}
-                                </span>
-                              </button>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex gap-2 justify-center flex-wrap">
-                                <button
-                                  onClick={() => handleShowPiaa(course._id, course.name)}
-                                  className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
-                                >
-                                  Mostrar PIAA
-                                </button>
-                                <button
-                                  onClick={() => handleGenerateWithAI(course._id, course.name)}
-                                  className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
-                                >
-                                  Generar con IA
-                                </button>
-                                <button
-                                  onClick={() => handleShowGeneratedContent(course._id, course.name)}
-                                  disabled={loadingGeneratedContent}
-                                  className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
-                                >
-                                  {loadingGeneratedContent ? 'Cargando...' : 'Mostrar Contenido Generado'}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                          {expandedCourses.has(course._id) && Array.isArray(course.students) && course.students.length > 0 && (
-                            <tr className="bg-[#0a0a1f] border-b border-[#2a2a4a]">
-                              <td colSpan={3} className="px-6 py-4">
-                                <div className="space-y-2">
-                                  {course.students.map((student: any) => (
-                                    <div
-                                      key={typeof student === 'string' ? student : student._id}
-                                      className="bg-[#151540] rounded px-4 py-2 text-sm text-white flex items-center justify-between"
-                                    >
-                                      <span>{typeof student === 'string' ? 'ID: ' + student : student.name || 'Estudiante'}</span>
-                                      {typeof student !== 'string' && student.email && (
-                                        <span className="text-white/60 text-xs">{student.email}</span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="bg-[#101434] rounded-lg shadow p-6 text-center text-white/70">
-                  No tienes cursos asignados.
-                </div>
-              )}
+    <div className="flex min-h-screen bg-[#040418] text-white font-sans">
+      <SideBar user={user ?? undefined} />
+      
+      <main className="flex-1 p-6 md:p-8">
+        {/* Header con botón de volver */}
+        <div className="mb-6">
+          <button
+            onClick={() => window.location.href = '/courses/list'}
+            className="flex items-center gap-2 text-zinc-400 hover:text-white transition mb-4 cursor-pointer"
+          >
+            <FaArrowLeft />
+            <span>Volver a la lista</span>
+          </button>
+          
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 bg-[#6356E5] text-white rounded-full flex items-center justify-center text-2xl font-bold">
+              {course.name.charAt(0).toUpperCase()}
             </div>
-
-            {/* Métricas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Cantidad de Cursos */}
-              <div className="bg-[#101434] rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white/70 text-sm font-medium mb-1">
-                      Cursos Activos
-                    </p>
-                    <p className="text-4xl font-bold text-[#6356E5]">
-                      {metrics.coursesCount}
-                    </p>
-                  </div>
-                  <div className="bg-[#6356E5] bg-opacity-20 rounded-full p-4">
-                    <img
-                      src="/assets/iconos/cursos.png"
-                      alt="Courses"
-                      className="w-10 h-10"
-                    />
-                  </div>
-                </div>
-                <p className="text-white/60 text-sm mt-3">
-                  Total de cursos que estás impartiendo
-                </p>
-              </div>
-
-              {/* Cantidad de Estudiantes */}
-              <div className="bg-[#101434] rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white/70 text-sm font-medium mb-1">
-                      Estudiantes Únicos
-                    </p>
-                    <p className="text-4xl font-bold text-[#7a6eff]">
-                      {metrics.studentsCount}
-                    </p>
-                  </div>
-                  <div className="bg-[#7a6eff] bg-opacity-20 rounded-full p-4">
-                    <img
-                      src="/assets/iconos/students.png"
-                      alt="Students"
-                      className="w-10 h-10"
-                    />
-                  </div>
-                </div>
-                <p className="text-white/60 text-sm mt-3">
-                  Estudiantes diferentes a los que impartes clase
-                </p>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex flex-col lg:flex-row flex-1 gap-4">
-              <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-white">Material de Clase</h2>
-                <p className="text-sm text-white/90">Aquí se muestra el material de clase dejado.</p>
-              </div>
-              <div
-                className={`w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 ${expanded ? 'lg:w-full' : ''}`}
-                onClick={() => setExpanded(!expanded)}
-              >
-                <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
-                <p className="text-sm text-white/90">
-                </p>
-              </div>
-            </div>
-          </>
-        )}
-      </main>
-
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-
-      {/* Modal PIAA */}
-      {showPiaaModal && selectedCoursePiaa && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#101434] rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-[#0f0f2e] border-b border-[#2a2a4a] px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-white">PIAA - {selectedCoursePiaa.name}</h2>
-              <button
-                onClick={() => {
-                  setShowPiaaModal(false);
-                  setSelectedCoursePiaa(null);
-                }}
-                className="text-white/60 hover:text-white text-2xl transition cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="text-white whitespace-pre-wrap break-words bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
-                {selectedCoursePiaa.content}
-              </div>
-            </div>
-            <div className="bg-[#0f0f2e] border-t border-[#2a2a4a] px-6 py-4 flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowPiaaModal(false);
-                  setSelectedCoursePiaa(null);
-                }}
-                className="bg-[#35448e] hover:bg-[#2a3670] text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer"
-              >
-                Cerrar
-              </button>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
+                {course.name}
+              </h1>
+              <p className="text-zinc-400 text-sm mt-1">
+                Creado el {new Date(course.createdAt).toLocaleDateString('es-ES', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </p>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Grid de información */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Descripción */}
+          <div className="bg-[#101434] p-6 rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FaFileAlt className="text-[#6356E5]" />
+              Descripción
+            </h2>
+            <p className="text-zinc-300 leading-relaxed">{course.description}</p>
+          </div>
+
+          {/* Profesor */}
+          <div className="bg-[#101434] p-6 rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FaUser className="text-[#6356E5]" />
+              Profesor
+            </h2>
+            <div className="space-y-2">
+              <p className="text-white font-medium text-lg">{course.teacher.name}</p>
+              <p className="text-zinc-400 text-sm">{course.teacher.email}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* PIAA Syllabus */}
+        {course.piaa_syllabus && (
+          <div className="bg-[#101434] p-6 rounded-lg shadow-lg mb-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FaBook className="text-[#6356E5]" />
+              PIAA - Programa de la Asignatura
+            </h2>
+            <div className="bg-[#1a1a2e] p-4 rounded-lg">
+              <pre className="whitespace-pre-wrap text-zinc-300 text-sm leading-relaxed">
+                {course.piaa_syllabus}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {/* Botones de acción (solo para docentes) */}
+        {user?.role.toLowerCase() === "docente" && (
+          <div className="bg-[#101434] p-6 rounded-lg shadow-lg mb-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FaFileAlt className="text-[#6356E5]" />
+              Acciones del Docente
+            </h2>
+            <div className="flex gap-3 flex-wrap">
+              <button
+                onClick={handleGenerateWithAI}
+                className="bg-[#28a745] hover:bg-[#218838] text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2"
+              >
+                <span>🤖</span> Generar Material con IA
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Materiales Generados (visible para todos) */}
+        <div className="bg-[#101434] p-6 rounded-lg shadow-lg mb-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <FaBook className="text-[#6356E5]" />
+            Materiales Generados
+          </h2>
+          <button
+            onClick={handleShowGeneratedContent}
+            disabled={loadingGeneratedContent}
+            className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer w-full md:w-auto"
+          >
+            {loadingGeneratedContent ? (
+              <span className="flex items-center justify-center gap-2">
+                <AiOutlineLoading3Quarters className="animate-spin" />
+                Cargando...
+              </span>
+            ) : (
+              'Ver Contenido Generado'
+            )}
+          </button>
+        </div>
+
+        {/* Lista de Estudiantes */}
+        <div className="bg-[#101434] p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <FaUser className="text-[#6356E5]" />
+            Estudiantes Inscritos
+            <span className="ml-2 bg-[#6356E5] text-white text-sm px-3 py-1 rounded-full">
+              {course.students.length}
+            </span>
+          </h2>
+          
+          {course.students.length === 0 ? (
+            <p className="text-zinc-400 text-center py-6">
+              No hay estudiantes inscritos en este curso.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {course.students.map((student) => (
+                <div
+                  key={student._id}
+                  className="bg-[#1a1a2e] p-4 rounded-lg hover:bg-[#2a2a3a] transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#6356E5] text-white rounded-full flex items-center justify-center font-semibold">
+                      {student.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{student.name}</p>
+                      <p className="text-zinc-400 text-sm">{student.email}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Información adicional */}
+        <div className="mt-6 bg-[#101434] p-4 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between text-sm text-zinc-400">
+            <div className="flex items-center gap-2">
+              <FaCalendar className="text-[#6356E5]" />
+              <span>Última actualización: {new Date(course.updatedAt).toLocaleDateString('es-ES')}</span>
+            </div>
+            <div>
+              <span>ID: {course._id}</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Modal Lista de Contenidos Generados */}
       {showGeneratedContentListModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[#101434] rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
             <div className="sticky top-0 bg-[#0f0f2e] border-b border-[#2a2a4a] px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-white">Contenidos Generados - {selectedCourseForContent?.name}</h2>
+              <h2 className="text-xl font-semibold text-white">Contenidos Generados - {course?.name}</h2>
               <button
                 onClick={() => {
                   setShowGeneratedContentListModal(false);
@@ -518,7 +421,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-white/60 text-center py-8">
-                  Cargando contenidos generados...
+                  No hay contenido por este momento
                 </div>
               )}
             </div>
