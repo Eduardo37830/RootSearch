@@ -674,6 +674,70 @@ describe('RootSearch E2E Tests', () => {
         expect(response.body.length).toBeGreaterThanOrEqual(1);
       });
     });
+
+    describe('GET /courses/all - Ver todos los cursos (Solo Admin)', () => {
+      it('debe retornar todos los cursos como Administrador (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        const allCourses = [
+          mockCourse,
+          { ...mockCourse, _id: '507f1f77bcf86cd799439032', name: 'Curso 2' },
+          { ...mockCourse, _id: '507f1f77bcf86cd799439033', name: 'Curso 3' },
+        ];
+
+        mockCourseModel.find.mockReturnValue(chainable(allCourses));
+
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(3);
+      });
+
+      it('debe denegar acceso a Docente (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.docente),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .set('Authorization', `Bearer ${docenteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe denegar acceso a Estudiante (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe fallar sin token de autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
+      });
+    });
   });
 
   // ==========================================
