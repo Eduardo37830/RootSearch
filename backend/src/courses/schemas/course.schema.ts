@@ -18,6 +18,9 @@ export class Course {
   @Prop({ type: String, required: false })
   piaa_syllabus: string;
 
+  @Prop({ required: false })
+  pia: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   teacher: User | Types.ObjectId;
 

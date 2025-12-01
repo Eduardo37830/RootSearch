@@ -445,6 +445,119 @@ describe('RootSearch E2E Tests', () => {
         expect(response.body.length).toBe(3);
       });
     });
+
+    describe('GET /users/my-teachers - Obtener profesores de mis cursos (Solo Estudiante)', () => {
+      it('debe obtener profesores de los cursos del estudiante (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        // Mock de cursos con profesores
+        const coursesWithTeachers = [
+          {
+            _id: mockCourse._id,
+            name: mockCourse.name,
+            description: mockCourse.description,
+            teacher: {
+              _id: mockUsers.docente._id,
+              name: mockUsers.docente.name,
+              email: mockUsers.docente.email,
+            },
+            students: [mockUsers.estudiante._id],
+          },
+          {
+            _id: '507f1f77bcf86cd799439032',
+            name: 'Matemáticas Avanzadas',
+            description: 'Curso de matemáticas',
+            teacher: {
+              _id: '507f1f77bcf86cd799439024',
+              name: 'Prof. María García',
+              email: 'maria@test.com',
+            },
+            students: [mockUsers.estudiante._id],
+          },
+        ];
+
+        mockCourseModel.find.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(coursesWithTeachers),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(2);
+        expect(response.body[0]).toHaveProperty('courseName');
+        expect(response.body[0]).toHaveProperty('teacherName');
+        expect(response.body[0]).toHaveProperty('teacherEmail');
+      });
+
+      it('debe retornar lista vacía si el estudiante no está inscrito en cursos (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        mockCourseModel.find.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([]),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(0);
+      });
+
+      it('debe denegar acceso a Docente (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.docente),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${docenteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe denegar acceso a Administrador (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe fallar sin token de autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
+      });
+    });
   });
 
   // ==========================================

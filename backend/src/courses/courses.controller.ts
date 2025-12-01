@@ -12,8 +12,11 @@ import {
   UploadedFile,
   ParseFilePipe,
   FileTypeValidator,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -39,7 +42,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 @Controller('courses')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class CoursesController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(private readonly coursesService: CoursesService) { }
 
   @Post()
   @Roles('administrador', 'docente') // Admin o Docente pueden crear cursos
@@ -92,7 +95,7 @@ export class CoursesController {
         fileIsRequired: false,
       }),
     )
-    file?: Express.Multer.File,
+    file?: any,
   ) {
     return this.coursesService.create(
       createCourseDto,
@@ -229,7 +232,7 @@ export class CoursesController {
         fileIsRequired: false,
       }),
     )
-    file?: Express.Multer.File,
+    file?: any,
   ) {
     return this.coursesService.update(id, updateCourseDto, file);
   }
@@ -356,9 +359,34 @@ export class CoursesController {
         validators: [new FileTypeValidator({ fileType: 'pdf' })],
       }),
     )
-    file: Express.Multer.File,
+    file: any,
   ) {
     return this.coursesService.update(id, {}, file);
+  }
+
+  @Get(':id/pia')
+  @Roles('administrador', 'docente', 'estudiante')
+  @ApiOperation({ summary: 'Descargar el PIA del curso en PDF' })
+  @ApiParam({ name: 'id', description: 'ID del curso' })
+  @ApiResponse({ status: 200, description: 'Archivo PDF descargado.' })
+  @ApiResponse({ status: 404, description: 'Curso o PIA no encontrado.' })
+  async exportPia(@Param('id') id: string, @Res() res: Response) {
+    const course = await this.coursesService.findOne(id);
+
+    if (!course || !course.pia) {
+      throw new NotFoundException('PIA no encontrado para este curso');
+    }
+
+    // Decodificar Base64 a Buffer
+    const pdfBuffer = Buffer.from(course.pia, 'base64');
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=PIA_${course.name.replace(/\s+/g, '_')}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.end(pdfBuffer);
   }
 
   @Get('by-teacher/:teacherId')

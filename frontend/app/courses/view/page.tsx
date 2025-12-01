@@ -6,9 +6,11 @@ import { getCourseById } from '../../../services/courses';
 import { getUserProfile } from '../../../services/users';
 import { uploadAudio } from '../../../services/audio';
 import { getGeneratedContentByCourse } from '../../../services/generated-content';
+import { downloadMaterial, exportMaterialToPdf } from '../../../services/materials';
 import SideBar from '@/components/SideBar';
 import Toast from '@/components/Toast';
-import { FaBook, FaUser, FaCalendar, FaFileAlt, FaArrowLeft } from 'react-icons/fa';
+import UploadMaterialModal from '@/components/upload_material';
+import { FaBook, FaUser, FaCalendar, FaFileAlt, FaArrowLeft, FaDownload, FaFilePdf, FaUpload } from 'react-icons/fa';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 type Course = {
@@ -54,6 +56,12 @@ export default function CourseViewPage() {
   } | null>(null);
   const [loadingGeneratedContent, setLoadingGeneratedContent] = useState(false);
   const [selectedTab, setSelectedTab] = useState<"resumen" | "glosario" | "quiz" | "checklist">("resumen");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showMaterialsListModal, setShowMaterialsListModal] = useState(false);
+  const [showDownloadMaterialModal, setShowDownloadMaterialModal] = useState(false);
+  const [showExportMaterialModal, setShowExportMaterialModal] = useState(false);
+  const [materialsForCourse, setMaterialsForCourse] = useState<any[]>([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -160,6 +168,89 @@ export default function CourseViewPage() {
     });
     setShowGeneratedContentListModal(false);
     setShowGeneratedContentModal(true);
+  };
+
+  const handleUploadSuccess = () => {
+    setToast({ message: 'Materiales subidos exitosamente', type: 'success' });
+    // Recargar la lista de materiales
+    loadCourseMaterials();
+  };
+
+  const loadCourseMaterials = async () => {
+    if (!courseId) return;
+    
+    try {
+      setLoadingMaterials(true);
+      const response = await getGeneratedContentByCourse(courseId);
+      if (Array.isArray(response)) {
+        setMaterialsForCourse(response);
+      }
+    } catch (error) {
+      console.error('Error al cargar materiales:', error);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
+
+  const handleShowMaterialsList = async () => {
+    await loadCourseMaterials();
+    setShowMaterialsListModal(true);
+  };
+
+  const handleDownloadMaterialClick = async () => {
+    await loadCourseMaterials();
+    setShowDownloadMaterialModal(true);
+  };
+
+  const handleExportToPdfClick = async () => {
+    await loadCourseMaterials();
+    setShowExportMaterialModal(true);
+  };
+
+  const handleDownloadMaterial = async (materialId: string, materialTitle: string) => {
+    try {
+      setToast({ message: 'Descargando material...', type: 'info' });
+      const blob = await downloadMaterial(materialId);
+      
+      // Crear un enlace temporal para descargar el archivo
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${materialTitle || 'material'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setToast({ message: 'Material descargado exitosamente', type: 'success' });
+      setShowDownloadMaterialModal(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al descargar material: ${errorMessage}`, type: 'error' });
+    }
+  };
+
+  const handleExportToPdf = async (materialId: string, materialTitle: string) => {
+    try {
+      setToast({ message: 'Exportando a PDF...', type: 'info' });
+      const blob = await exportMaterialToPdf(materialId);
+      
+      // Crear un enlace temporal para descargar el PDF
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${materialTitle || 'material'}-export.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setToast({ message: 'PDF exportado exitosamente', type: 'success' });
+      setShowExportMaterialModal(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al exportar a PDF: ${errorMessage}`, type: 'error' });
+    }
   };
 
   if (loading) {
@@ -273,9 +364,35 @@ export default function CourseViewPage() {
             <div className="flex gap-3 flex-wrap">
               <button
                 onClick={handleGenerateWithAI}
-                className="bg-[#28a745] hover:bg-[#218838] text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2"
+                className="bg-[#28a745] hover:bg-[#218838] text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2 text-sm sm:text-base"
               >
-                <span>🤖</span> Generar Material con IA
+                <span>🤖</span> 
+                <span className="hidden sm:inline">Generar Material con IA</span>
+                <span className="sm:hidden">IA Audio</span>
+              </button>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2 text-sm sm:text-base"
+              >
+                <FaUpload />
+                <span className="hidden sm:inline">Subir Materiales (PDF)</span>
+                <span className="sm:hidden">Subir PDF</span>
+              </button>
+              <button
+                onClick={handleDownloadMaterialClick}
+                className="bg-[#17a2b8] hover:bg-[#138496] text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2 text-sm sm:text-base"
+              >
+                <FaDownload />
+                <span className="hidden sm:inline">Descargar Material</span>
+                <span className="sm:hidden">Descargar</span>
+              </button>
+              <button
+                onClick={handleExportToPdfClick}
+                className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2 text-sm sm:text-base"
+              >
+                <FaFilePdf />
+                <span className="hidden sm:inline">Exportar a PDF</span>
+                <span className="sm:hidden">Exportar</span>
               </button>
             </div>
           </div>
@@ -287,20 +404,39 @@ export default function CourseViewPage() {
             <FaBook className="text-[#6356E5]" />
             Materiales Generados
           </h2>
-          <button
-            onClick={handleShowGeneratedContent}
-            disabled={loadingGeneratedContent}
-            className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer w-full md:w-auto"
-          >
-            {loadingGeneratedContent ? (
-              <span className="flex items-center justify-center gap-2">
-                <AiOutlineLoading3Quarters className="animate-spin" />
-                Cargando...
-              </span>
-            ) : (
-              'Ver Contenido Generado'
-            )}
-          </button>
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={handleShowGeneratedContent}
+              disabled={loadingGeneratedContent}
+              className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer"
+            >
+              {loadingGeneratedContent ? (
+                <span className="flex items-center justify-center gap-2">
+                  <AiOutlineLoading3Quarters className="animate-spin" />
+                  Cargando...
+                </span>
+              ) : (
+                'Ver Contenido Generado'
+              )}
+            </button>
+            <button
+              onClick={handleShowMaterialsList}
+              disabled={loadingMaterials}
+              className="bg-[#28a745] hover:bg-[#218838] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2"
+            >
+              {loadingMaterials ? (
+                <>
+                  <AiOutlineLoading3Quarters className="animate-spin" />
+                  <span>Cargando...</span>
+                </>
+              ) : (
+                <>
+                  <FaFileAlt />
+                  <span>Lista de Materiales</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Lista de Estudiantes */}
@@ -599,6 +735,233 @@ export default function CourseViewPage() {
                 Cerrar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Subir Material */}
+      {courseId && (
+        <UploadMaterialModal
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={handleUploadSuccess}
+          courseId={courseId}
+        />
+      )}
+
+      {/* Modal: Lista General de Materiales */}
+      {showMaterialsListModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <FaFileAlt className="text-[#6356E5]" />
+                Lista de Materiales
+              </h2>
+              <button
+                onClick={() => setShowMaterialsListModal(false)}
+                className="text-white/60 hover:text-white text-2xl transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingMaterials ? (
+              <div className="flex justify-center py-8">
+                <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5]" />
+              </div>
+            ) : materialsForCourse.length > 0 ? (
+              <div className="space-y-3">
+                {materialsForCourse.map((material, index) => (
+                  <div
+                    key={material._id}
+                    className="bg-[#1a1a2e] p-4 rounded-lg border border-[#333] hover:border-[#6356E5] transition"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
+                            #{index + 1}
+                          </span>
+                          <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                            material.estado === 'PUBLICADO'
+                              ? 'bg-[#28a745] text-white'
+                              : material.estado === 'PENDIENTE_REVISION'
+                              ? 'bg-[#ffc107] text-black'
+                              : 'bg-[#6c757d] text-white'
+                          }`}>
+                            {material.estado}
+                          </span>
+                        </div>
+                        <p className="text-white/80 text-sm mb-2">
+                          {material.tematica || `Material ${index + 1}`}
+                        </p>
+                        <p className="text-white/60 text-xs">
+                          Creado: {new Date(material.createdAt).toLocaleDateString('es-ES')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-zinc-400 text-center py-8">
+                No hay materiales disponibles para este curso.
+              </p>
+            )}
+
+            <button
+              onClick={() => setShowMaterialsListModal(false)}
+              className="mt-6 bg-[#6356E5] hover:bg-[#4f48c7] text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer w-full"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Seleccionar Material para Descargar */}
+      {showDownloadMaterialModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <FaDownload className="text-[#17a2b8]" />
+                Seleccionar Material para Descargar
+              </h2>
+              <button
+                onClick={() => setShowDownloadMaterialModal(false)}
+                className="text-white/60 hover:text-white text-2xl transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingMaterials ? (
+              <div className="flex justify-center py-8">
+                <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5]" />
+              </div>
+            ) : materialsForCourse.length > 0 ? (
+              <div className="space-y-3">
+                {materialsForCourse.map((material, index) => (
+                  <div
+                    key={material._id}
+                    onClick={() => handleDownloadMaterial(material._id, material.tematica || `Material-${index + 1}`)}
+                    className="bg-[#1a1a2e] p-4 rounded-lg border border-[#333] hover:border-[#17a2b8] transition cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
+                            #{index + 1}
+                          </span>
+                          <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                            material.estado === 'PUBLICADO'
+                              ? 'bg-[#28a745] text-white'
+                              : material.estado === 'PENDIENTE_REVISION'
+                              ? 'bg-[#ffc107] text-black'
+                              : 'bg-[#6c757d] text-white'
+                          }`}>
+                            {material.estado}
+                          </span>
+                        </div>
+                        <p className="text-white/80 text-sm mb-2">
+                          {material.tematica || `Material ${index + 1}`}
+                        </p>
+                        <p className="text-white/60 text-xs">
+                          Creado: {new Date(material.createdAt).toLocaleDateString('es-ES')}
+                        </p>
+                      </div>
+                      <FaDownload className="text-[#17a2b8] text-xl group-hover:scale-110 transition" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-zinc-400 text-center py-8">
+                No hay materiales disponibles para descargar.
+              </p>
+            )}
+
+            <button
+              onClick={() => setShowDownloadMaterialModal(false)}
+              className="mt-6 bg-zinc-700 hover:bg-zinc-600 text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer w-full"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Seleccionar Material para Exportar a PDF */}
+      {showExportMaterialModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <FaFilePdf className="text-[#dc3545]" />
+                Seleccionar Material para Exportar a PDF
+              </h2>
+              <button
+                onClick={() => setShowExportMaterialModal(false)}
+                className="text-white/60 hover:text-white text-2xl transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingMaterials ? (
+              <div className="flex justify-center py-8">
+                <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5]" />
+              </div>
+            ) : materialsForCourse.length > 0 ? (
+              <div className="space-y-3">
+                {materialsForCourse.map((material, index) => (
+                  <div
+                    key={material._id}
+                    onClick={() => handleExportToPdf(material._id, material.tematica || `Material-${index + 1}`)}
+                    className="bg-[#1a1a2e] p-4 rounded-lg border border-[#333] hover:border-[#dc3545] transition cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
+                            #{index + 1}
+                          </span>
+                          <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                            material.estado === 'PUBLICADO'
+                              ? 'bg-[#28a745] text-white'
+                              : material.estado === 'PENDIENTE_REVISION'
+                              ? 'bg-[#ffc107] text-black'
+                              : 'bg-[#6c757d] text-white'
+                          }`}>
+                            {material.estado}
+                          </span>
+                        </div>
+                        <p className="text-white/80 text-sm mb-2">
+                          {material.tematica || `Material ${index + 1}`}
+                        </p>
+                        <p className="text-white/60 text-xs">
+                          Creado: {new Date(material.createdAt).toLocaleDateString('es-ES')}
+                        </p>
+                      </div>
+                      <FaFilePdf className="text-[#dc3545] text-xl group-hover:scale-110 transition" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-zinc-400 text-center py-8">
+                No hay materiales disponibles para exportar.
+              </p>
+            )}
+
+            <button
+              onClick={() => setShowExportMaterialModal(false)}
+              className="mt-6 bg-zinc-700 hover:bg-zinc-600 text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer w-full"
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}
