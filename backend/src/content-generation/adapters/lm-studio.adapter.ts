@@ -4,14 +4,14 @@ import { firstValueFrom } from 'rxjs';
 import {
   IContentGenerator,
   GeneratedContent,
-} from '../content-generation.interface';
+} from './content-generation.interface';
 
 @Injectable()
 export class LmStudioAdapter implements IContentGenerator {
   private readonly logger = new Logger(LmStudioAdapter.name);
   private readonly apiUrl = 'http://localhost:1234/v1/chat/completions';
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly httpService: HttpService) { }
 
   async generarResumen(transcripcion: string): Promise<string> {
     const prompt = `
@@ -55,7 +55,7 @@ export class LmStudioAdapter implements IContentGenerator {
     userContent: string,
     temp: number,
   ): Promise<string> {
-    const { data } = await firstValueFrom(
+    const { data } = (await firstValueFrom(
       this.httpService.post(this.apiUrl, {
         model: 'local-model',
         messages: [
@@ -65,7 +65,7 @@ export class LmStudioAdapter implements IContentGenerator {
         temperature: temp,
         stream: false,
       }),
-    );
+    )) as any;
     return data.choices[0].message.content;
   }
 

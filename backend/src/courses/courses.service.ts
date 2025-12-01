@@ -19,7 +19,7 @@ export class CoursesService {
     @InjectModel(Course.name) private courseModel: Model<CourseDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
-  ) {}
+  ) { }
 
   async create(createCourseDto: CreateCourseDto): Promise<Course> {
     // Verificar que el profesor existe y tiene el rol DOCENTE
@@ -48,6 +48,7 @@ export class CoursesService {
     const newCourse = new this.courseModel({
       name: createCourseDto.name,
       description: createCourseDto.description,
+      pia: createCourseDto.pia,
       teacher: new Types.ObjectId(createCourseDto.teacherId),
       students: createCourseDto.studentIds
         ? createCourseDto.studentIds.map((id) => new Types.ObjectId(id))
@@ -161,6 +162,7 @@ export class CoursesService {
     if (updateCourseDto.name) course.name = updateCourseDto.name;
     if (updateCourseDto.description)
       course.description = updateCourseDto.description;
+    if (updateCourseDto.pia) course.pia = updateCourseDto.pia;
     if (updateCourseDto.active !== undefined)
       course.active = updateCourseDto.active;
 

@@ -27,6 +27,14 @@ export class UpdateCourseDto {
   description?: string;
 
   @ApiProperty({
+    description: 'Archivo PIA en formato Base64',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  pia?: string;
+
+  @ApiProperty({
     description: 'ID del nuevo profesor (debe tener rol DOCENTE)',
     example: '507f1f77bcf86cd799439011',
     required: false,

@@ -26,6 +26,14 @@ export class CreateCourseDto {
   description: string;
 
   @ApiProperty({
+    description: 'Archivo PIA en formato Base64',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  pia?: string;
+
+  @ApiProperty({
     description:
       'ID del usuario que será el profesor del curso (debe tener rol DOCENTE)',
     example: '507f1f77bcf86cd799439011',

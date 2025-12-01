@@ -6,7 +6,7 @@ import { GeneratedMaterial } from './schemas/material.schema';
 import {
   CONTENT_GENERATOR,
   IContentGenerator,
-} from '../content-generation/content-generation.interface';
+} from '../content-generation/adapters/content-generation.interface';
 import { EmailService } from '../auth/services/email.service';
 
 @Injectable()
@@ -20,7 +20,7 @@ export class MaterialsService {
     private materialModel: Model<GeneratedMaterial>,
     @Inject(CONTENT_GENERATOR) private contentGenerator: IContentGenerator,
     private emailService: EmailService,
-  ) {}
+  ) { }
 
   async generarTodoSecuencial(transcriptionId: string) {
     // 1. Buscar la transcripción existente
