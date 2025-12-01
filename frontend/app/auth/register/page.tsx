@@ -40,7 +40,7 @@ export default function RegisterPage() {
         <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
           <h2 className="text-3xl font-semibold text-white mb-2">Sign up</h2>
           <p className="text-zinc-300 mb-2">If you already have an account register</p>
-          <p className="text-zinc-300 mb-6">You can <a href="/users/login" className="text-[#6356E5] font-semibold">Login here !</a></p>
+          <p className="text-zinc-300 mb-6">You can <a href="/auth/login" className="text-[#6356E5] font-semibold">Login here !</a></p>
           <form
             className="space-y-4"
             onSubmit={async (e) => {
@@ -57,7 +57,7 @@ export default function RegisterPage() {
                 } else {
                   setToast({ show: true, message: "Registro exitoso", type: "success" });
                   setTimeout(() => {
-                    router.push(`/users/verify?email=${encodeURIComponent(email)}`);
+                    router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
                   }, 800);
                 }
               } catch (err) {

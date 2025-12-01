@@ -331,7 +331,7 @@ export class CoursesService {
         );
       }
 
-      const hasStudentRole = await this.hasRole(student, 'ESTUDIANTE');
+      const hasStudentRole = await this.hasRole(student, 'estudiante');
       if (!hasStudentRole) {
         throw new BadRequestException(
           `El usuario ${student.name} no tiene el rol de ESTUDIANTE`,

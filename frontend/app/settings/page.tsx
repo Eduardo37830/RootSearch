@@ -11,7 +11,10 @@ type UserData = {
   _id: string;
   name: string;
   email: string;
-  roles?: Array<{ name: string }>;
+  roles?: Array<{ _id: string; name: string }>;
+  phone?: string;
+  address?: string;
+  birthDate?: string;
 };
 
 export default function SettingsPage() {
@@ -19,6 +22,10 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
+    address: '',
+    birthDate: '',
+    roleId: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +42,10 @@ export default function SettingsPage() {
         setFormData({
           name: userData.name,
           email: userData.email,
+          phone: userData.phone || '',
+          address: userData.address || '',
+          birthDate: userData.birthDate || '',
+          roleId: userData.roles?.[0]?._id || '',
         });
       } catch (error) {
         console.error("Error al obtener el perfil del usuario:", error);
@@ -67,15 +78,16 @@ export default function SettingsPage() {
         throw new Error('No se pudo obtener el ID del usuario');
       }
       
-      await updateUserProfile(user.id, formData);
+      const isAdmin = user.role.toLowerCase() === 'administrador';
+      await updateUserProfile(user.id, formData, isAdmin);
       setSuccessMessage('Perfil actualizado exitosamente');
       
       // Actualizar el estado del usuario
       if (user) {
         setUser({ ...user, name: formData.name });
       }
-    } catch (err) {
-      setError('Error al actualizar el perfil. Por favor, intenta de nuevo.');
+    } catch (err: any) {
+      setError(err.message || 'Error al actualizar el perfil. Por favor, intenta de nuevo.');
       console.error('Error updating profile:', err);
     } finally {
       setSaving(false);
@@ -121,70 +133,141 @@ export default function SettingsPage() {
                 {error}
               </div>
             )}
-
             {successMessage && (
-              <div className="mb-6 p-4 bg-green-500 bg-opacity-20 border border-green-500 rounded-lg text-green-400 text-sm">
+              <div className="mb-6 p-4 bg-green-500 bg-opacity-20 border border-green-500 rounded-lg text-white text-md text-center">
                 {successMessage}
               </div>
             )}
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name Field */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-                  Nombre <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <FaUser className="text-gray-500" />
+              {/* Row 1: Name and Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Name Field */}
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+                    Nombre <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaUser className="text-gray-500" />
+                    </div>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      disabled={saving}
+                      className="w-full pl-12 pr-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Tu nombre completo"
+                    />
                   </div>
+                </div>
+
+                {/* Email Field */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                    Correo Electrónico <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaEnvelope className="text-gray-500" />
+                    </div>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      disabled={saving}
+                      className="w-full pl-12 pr-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="tu@email.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Phone and Birth Date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Phone Field */}
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-2">
+                    Teléfono
+                  </label>
                   <input
                     type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
                     onChange={handleChange}
-                    required
                     disabled={saving}
-                    className="w-full pl-12 pr-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Tu nombre completo"
+                    className="w-full px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="+57 300 123 4567"
                   />
                 </div>
-              </div>
 
-              {/* Email Field */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Correo Electrónico <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <FaEnvelope className="text-gray-500" />
-                  </div>
+                {/* Birth Date Field */}
+                <div>
+                  <label htmlFor="birthDate" className="block text-sm font-medium text-gray-300 mb-2">
+                    Fecha de Nacimiento
+                  </label>
                   <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
+                    type="text"
+                    id="birthDate"
+                    name="birthDate"
+                    value={formData.birthDate}
                     onChange={handleChange}
-                    required
                     disabled={saving}
-                    className="w-full pl-12 pr-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="tu@email.com"
+                    className="w-full px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="DD/MM/YYYY"
                   />
                 </div>
               </div>
 
-              {/* Role Field (Read-only) */}
+              {/* Row 3: Address (full width) */}
+              <div>
+                <label htmlFor="address" className="block text-sm font-medium text-gray-300 mb-2">
+                  Dirección
+                </label>
+                <input
+                  type="text"
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  disabled={saving}
+                  className="w-full px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Calle 123 # 45-67"
+                />
+              </div>
+
+              {/* Role Field */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Rol
+                  Rol {user?.role.toLowerCase() !== 'administrador' && <span className="text-xs text-gray-500">(Solo lectura)</span>}
                 </label>
-                <div className="px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-gray-400">
-                  {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : 'N/A'}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">Este campo no se puede modificar</p>
+                {user?.role.toLowerCase() === 'administrador' ? (
+                  <input
+                    type="text"
+                    id="roleId"
+                    name="roleId"
+                    value={formData.roleId}
+                    onChange={handleChange}
+                    disabled={saving}
+                    className="w-full px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="ID del rol"
+                  />
+                ) : (
+                  <div className="px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-gray-400">
+                    {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : 'N/A'}
+                  </div>
+                )}
+                {user?.role.toLowerCase() !== 'administrador' && (
+                  <p className="mt-1 text-xs text-gray-500">Solo los administradores pueden modificar roles</p>
+                )}
               </div>
 
               {/* Submit Button */}
@@ -192,7 +275,7 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={saving || !formData.name.trim() || !formData.email.trim()}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-[#6356E5] to-[#4f48c7] hover:from-[#4f48c7] hover:to-[#6356E5] text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full px-6 py-3 bg-gradient-to-r from-[#6356E5] to-[#4f48c7] hover:from-[#4f48c7] hover:to-[#6356E5] text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <>

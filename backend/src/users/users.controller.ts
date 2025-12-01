@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -102,10 +104,11 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @Roles('administrador', 'docente', 'estudiante') // Todos los usuarios autenticados
   @ApiOperation({
     summary: 'Actualizar un usuario',
     description:
-      'Actualiza la información de un usuario existente. Todos los campos son opcionales.',
+      'Los usuarios pueden actualizar su propio perfil. Los administradores pueden actualizar cualquier usuario.',
   })
   @ApiParam({
     name: 'id',
@@ -117,6 +120,10 @@ export class UsersController {
     description: 'Usuario actualizado exitosamente.',
   })
   @ApiResponse({
+    status: 403,
+    description: 'No tienes permiso para actualizar este usuario.',
+  })
+  @ApiResponse({
     status: 404,
     description: 'Usuario no encontrado.',
   })
@@ -124,8 +131,36 @@ export class UsersController {
     status: 409,
     description: 'El email ya está en uso.',
   })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() currentUser: any,
+  ) {
+    // Verificar si el usuario está actualizando su propio perfil o si es admin
+    const isAdmin = currentUser.roles?.includes('administrador');
+    const isOwnProfile = currentUser.sub === id || currentUser.id === id;
+
+    if (!isAdmin && !isOwnProfile) {
+      throw new ForbiddenException(
+        'No tienes permiso para actualizar este usuario',
+      );
+    }
+
+    // Filtrar campos vacíos o undefined del DTO
+    const cleanedDto: any = {};
+    Object.keys(updateUserDto).forEach((key) => {
+      const value = updateUserDto[key];
+      if (value !== undefined && value !== null && value !== '') {
+        cleanedDto[key] = value;
+      }
+    });
+
+    // Si no es admin y está intentando cambiar el rol, bloquear
+    if (!isAdmin && cleanedDto.roleId) {
+      throw new ForbiddenException('No tienes permiso para cambiar el rol');
+    }
+
+    return this.usersService.update(id, cleanedDto);
   }
 
   @Delete(':id')

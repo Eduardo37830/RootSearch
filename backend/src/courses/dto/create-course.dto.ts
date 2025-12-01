@@ -5,6 +5,7 @@ import {
   IsArray,
   IsOptional,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCourseDto {
@@ -53,10 +54,19 @@ export class CreateCourseDto {
 
   @ApiProperty({
     description:
-      'Array de IDs de estudiantes a inscribir en el curso (opcional)',
-    example: ['507f1f77bcf86cd799439012', '507f1f77bcf86cd799439013'],
+      'Array de IDs de estudiantes a inscribir en el curso. Puede ser un array o un string separado por comas (opcional)',
+    example: '507f1f77bcf86cd799439012,507f1f77bcf86cd799439013',
     required: false,
-    type: [String],
+    type: String,
+  })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map(id => id.trim()).filter(id => id);
+    }
+    if (Array.isArray(value)) {
+      return value;
+    }
+    return [];
   })
   @IsOptional()
   @IsArray()

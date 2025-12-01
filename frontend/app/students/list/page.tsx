@@ -81,21 +81,23 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#040418] text-white font-sans">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#040418] text-white font-sans">
       <SideBar user={user!} />
-      <main className="flex-1 p-8">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <FaUserGraduate className="text-[#6356E5]" /> Listado de Estudiantes
+      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="mb-6 sm:mb-8 flex items-center justify-between">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <FaUserGraduate className="text-[#6356E5] text-xl sm:text-2xl" /> 
+            <span className="hidden sm:inline">Listado de Estudiantes</span>
+            <span className="sm:hidden">Estudiantes</span>
           </h1>
         </div>
         <div className="w-full overflow-x-auto rounded-lg shadow-lg bg-[#101434]">
           <table className="min-w-[400px] w-full text-sm text-white">
             <thead className="bg-[#1a1a2e]">
               <tr>
-                <th className="py-3 px-4 text-left whitespace-nowrap">Nombre</th>
-                <th className="py-3 px-4 text-left whitespace-nowrap">Correo</th>
-                <th className="py-3 px-4 text-left whitespace-nowrap">Fecha de registro</th>
+                <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Nombre</th>
+                <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Correo</th>
+                <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Fecha de registro</th>
               </tr>
             </thead>
             <tbody>
@@ -119,14 +121,17 @@ export default function StudentsPage() {
                     className="border-b border-[#333] cursor-pointer hover:bg-[#2a2a3a] transition"
                     onClick={() => window.location.href = `/students/view?studentId=${student._id}`}
                   >
-                    <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base flex items-center gap-3">
-                      <div className="w-8 h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center">
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base flex items-center gap-2 sm:gap-3">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center text-xs sm:text-base">
                         {student.name.charAt(0).toUpperCase()}
                       </div>
-                      {student.name}
+                      <span className="truncate max-w-[120px] sm:max-w-none">{student.name}</span>
                     </td>
-                    <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base">{student.email}</td>
-                    <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base">{new Date(student.createdAt).toLocaleDateString()}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">
+                      <span className="hidden sm:inline">{student.email}</span>
+                      <span className="sm:hidden truncate max-w-[100px] inline-block">{student.email}</span>
+                    </td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">{new Date(student.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))
               )}

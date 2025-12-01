@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { createCourse } from '../services/courses';
+import { createCourseWithFile } from '../services/courses';
 import { FaTimes, FaBook } from 'react-icons/fa';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
@@ -52,18 +52,7 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess, teacherI
         formDataToSend.append('file', file);
       }
 
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courses`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formDataToSend,
-      });
-
-      if (!response.ok) {
-        throw new Error('Error creating course');
-      }
+      await createCourseWithFile(formDataToSend);
       
       // Limpiar formulario
       setFormData({ name: '', description: '', studentIds: '', piaa_syllabus: '' });

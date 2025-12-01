@@ -1,55 +1,80 @@
 "use client";
 
-import { getUserById } from '@/services/users';
+import { getUserById, getUserProfile } from '@/services/users';
 import SideBar from '@/components/SideBar';
 import { useState, useEffect } from "react";
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
-interface StudentProfileParams {
-  id: string;
-}
+export default function StudentProfile() {
+  const searchParams = useSearchParams();
+  const studentId = searchParams.get('studentId');
 
-export default function StudentProfile({ params }: { params: StudentProfileParams }) {
-  const { id } = params;
-
-  const [user, setUser] = useState<{ id: string; name: string; role: string } | null>(null);
-  const [userInfo, setUserInfo] = useState({
-    name: 'NameStudent',
-    email: 'example@email.com',
-    cumulativeAverage: 3.7,
-    tel: '300301302',
-    dateOfBirth: '16/07/2004',
-    gender: 'M',
-  });
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [studentInfo, setStudentInfo] = useState<{
+    name: string;
+    email: string;
+    role: string;
+    createdAt: string;
+    phone: string;
+    address: string;
+    birthDate: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchUser() {
+    async function fetchData() {
       try {
-        const userData = await getUserById(id);
-        const role = userData.roles?.[0]?.name || "";
-
-        if (!["docente", "administrador"].includes(role.toLowerCase())) {
-          setError("No tienes permisos para acceder a esta sección.");
+        if (!studentId) {
+          setError("ID de estudiante no proporcionado");
+          setLoading(false);
           return;
         }
 
-        setUser({ id: userData._id, name: userData.name, role });
-        setUserInfo((prev) => ({
-          ...prev,
-          name: userData.name,
-          email: userData.email
-        }));
-      } catch (error) {
+        // Obtener usuario actual (para el sidebar y permisos)
+        const currentUserData = await getUserProfile();
+        const currentRole = currentUserData.roles?.[0]?.name || "";
+        setCurrentUser({ id: currentUserData._id, name: currentUserData.name, role: currentRole });
+
+        // Verificar permisos
+        if (!["docente", "administrador"].includes(currentRole.toLowerCase())) {
+          setError("No tienes permisos para acceder a esta sección.");
+          setLoading(false);
+          return;
+        }
+
+        // Obtener información del estudiante
+        const studentData = await getUserById(studentId);
+        const studentRole = studentData.roles?.[0]?.name || "estudiante";
+        
+        // Formatear fecha de creación
+        const createdDate = new Date(studentData.createdAt);
+        const formattedDate = createdDate.toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+
+        setStudentInfo({
+          name: studentData.name,
+          email: studentData.email,
+          role: studentRole.charAt(0).toUpperCase() + studentRole.slice(1),
+          createdAt: formattedDate,
+          phone: studentData.phone || 'No especificado',
+          address: studentData.address || 'No especificado',
+          birthDate: studentData.birthDate || 'No especificado',
+        });
+      } catch (error: any) {
         console.error('Error fetching user info:', error);
+        setError(error.message || "Error al cargar la información del estudiante");
       } finally {
         setLoading(false);
       }
     }
-    fetchUser();
-  }, [id]);
+    fetchData();
+  }, [studentId]);
 
   if (loading) {
     return (
@@ -80,46 +105,48 @@ export default function StudentProfile({ params }: { params: StudentProfileParam
   }
 
   return (
-    <div className="flex min-h-screen bg-[#181828] text-white">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#040418] text-white">
       
-      {/* Sidebar como tenías */}
-      <SideBar user={user!} />
+      {/* Sidebar */}
+      <SideBar user={currentUser!} />
 
-      {/* Contenido principal ocupando TODA la pestaña */}
-      <main className="flex-1 flex justify-center items-center p-10">
+      {/* Contenido principal */}
+      <main className="flex-1 flex justify-center items-center p-4 sm:p-6 lg:p-10">
 
-        <div className="bg-[#23233a] rounded-xl p-6 w-[1000px] shadow-xl">
+        <div className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-3xl shadow-2xl">
 
+          <div className="bg-[#0f0f1e] bg-opacity-50 rounded-xl p-4 sm:p-6">
 
-          <div className="bg-[#73808e54] rounded-xl p-5">
-
-            {/* Avatar */}
-            <div className="flex flex-col items-center mb-5">
-              <div className="w-20 h-20 rounded-full bg-[#8fa3b7] flex items-center justify-center">
-                <Image src="/assets/avatar.png" width={40} height={40} alt="avatar" />
+            {/* Avatar y nombre */}
+            <div className="flex flex-col items-center mb-6 sm:mb-8">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-[#6356E5] to-[#4f48c7] flex items-center justify-center text-3xl sm:text-4xl font-bold">
+                {studentInfo?.name.charAt(0).toUpperCase()}
               </div>
-              <p className="mt-3 text-lg font-bold">{userInfo.name}</p>
+              <p className="mt-3 sm:mt-4 text-xl sm:text-2xl font-bold text-center px-2">{studentInfo?.name}</p>
+              <span className="mt-1 px-3 py-1 bg-[#6356E5] bg-opacity-20 text-white rounded-full text-xs sm:text-sm">
+                {studentInfo?.role}
+              </span>
             </div>
 
-            {/* Tabla */}
-            <div className="grid grid-cols-2 border border-gray-400 rounded-lg text-sm">
+            {/* Tabla de información */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 border border-gray-700 rounded-lg overflow-hidden">
 
-              <div className="border-b border-gray-400 p-2 font-medium">Email</div>
-              <div className="border-b border-gray-400 p-2 text-blue-300 underline">
-                {userInfo.email}
+              <div className="border-b border-gray-700 p-3 sm:p-4 font-medium bg-[#1a1a2e] text-sm sm:text-base">Correo</div>
+              <div className="border-b border-gray-700 p-3 sm:p-4 text-blue-400 break-words text-sm sm:text-base">
+                {studentInfo?.email}
               </div>
+              
+              <div className="border-b border-gray-700 p-3 sm:p-4 font-medium bg-[#1a1a2e] text-sm sm:text-base">Fecha de registro</div>
+              <div className="border-b border-gray-700 p-3 sm:p-4 text-sm sm:text-base">{studentInfo?.createdAt}</div>
 
-              <div className="border-b border-gray-400 p-2 font-medium">Cumulative average</div>
-              <div className="border-b border-gray-400 p-2">{userInfo.cumulativeAverage}</div>
+              <div className="border-b border-gray-700 p-3 sm:p-4 font-medium bg-[#1a1a2e] text-sm sm:text-base">Teléfono</div>
+              <div className="border-b border-gray-700 p-3 sm:p-4 break-words text-sm sm:text-base">{studentInfo?.phone}</div>
 
-              <div className="border-b border-gray-400 p-2 font-medium">Tel</div>
-              <div className="border-b border-gray-400 p-2">{userInfo.tel}</div>
+              <div className="border-b border-gray-700 p-3 sm:p-4 font-medium bg-[#1a1a2e] text-sm sm:text-base">Dirección</div>
+              <div className="border-b border-gray-700 p-3 sm:p-4 break-words text-sm sm:text-base">{studentInfo?.address}</div>
 
-              <div className="border-b border-gray-400 p-2 font-medium">Date of birth</div>
-              <div className="border-b border-gray-400 p-2">{userInfo.dateOfBirth}</div>
-
-              <div className="p-2 font-medium">Gender</div>
-              <div className="p-2">{userInfo.gender}</div>
+              <div className="p-3 sm:p-4 font-medium bg-[#1a1a2e] text-sm sm:text-base">Fecha de nacimiento</div>
+              <div className="p-3 sm:p-4 text-sm sm:text-base">{studentInfo?.birthDate}</div>
 
             </div>
           </div>

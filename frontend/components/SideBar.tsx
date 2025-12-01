@@ -33,7 +33,7 @@ export default function SideBar({ user }: SideBarProps) {
       <aside
         className={`${
           isMinimized ? "w-16" : "w-48"
-        } h-70vh bg-[#4040ac] text-white flex flex-col py-4 shadow-lg transition-all duration-300 fixed lg:relative z-40 lg:z-auto mb-2 mt-2 ml-2 rounded-lg ${
+        } h-screen bg-[#4040ac] text-white flex flex-col shadow-lg transition-all duration-300 fixed lg:sticky lg:top-0 z-40 lg:z-auto ${
           isMobileMenuOpen ? "block" : "hidden lg:flex"
         }`}
       >
@@ -41,7 +41,7 @@ export default function SideBar({ user }: SideBarProps) {
         <div
           className={`flex items-center ${
             isMinimized ? "justify-center" : "justify-start px-4"
-          } mb-2`}
+          } mb-2 pt-4`}
         >
           <img
             src="/assets/black_logo.png"
@@ -55,9 +55,9 @@ export default function SideBar({ user }: SideBarProps) {
 
         <div className="border-t border-white my-4"></div>
 
-        {/* Menú principal */}
+        {/* Menú principal - con scroll si es necesario */}
         <nav
-          className={`flex flex-col gap-6 w-full transition-all duration-300 ${
+          className={`flex flex-col gap-6 w-full transition-all duration-300 overflow-y-auto flex-1 ${
             isMinimized ? "items-center px-0" : "px-4"
           }`}
         >
@@ -80,7 +80,19 @@ export default function SideBar({ user }: SideBarProps) {
               />
               {!isMinimized && "Dashboard"}
             </a>
-            {user?.role === "docente" || user?.role === "administrador" ? (
+            {user?.role === "administrador" ? (
+              <a
+                href="/users/list"
+                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              >
+                <img
+                  src="/assets/iconos/students.png"
+                  alt="Users Icon"
+                  className="w-6 h-6 mb-2"
+                />
+                {!isMinimized && "Usuarios"}
+              </a>
+            ) : user?.role === "docente" ? (
               <a
                 href="/students/list"
                 className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
@@ -90,11 +102,11 @@ export default function SideBar({ user }: SideBarProps) {
                   alt="Students Icon"
                   className="w-6 h-6 mb-2"
                 />
-                {!isMinimized && "Students"}
+                {!isMinimized && "Estudiantes"}
               </a>
             ) : (
               <a
-                href="/homeworks"
+                href="/homework"
                 className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
               >
                 <img
@@ -106,7 +118,7 @@ export default function SideBar({ user }: SideBarProps) {
               </a>
             )}
             <a
-              href={user?.role === "profesor" || user?.role === "administrador" ? "/courses/create" : "/courses/list"}
+              href={user?.role === "profesor" || user?.role === "administrador" ? "/courses/list" : "/courses/list"}
               className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
             >
               <img
@@ -114,40 +126,8 @@ export default function SideBar({ user }: SideBarProps) {
                 alt="Courses Icon"
                 className="w-6 h-6 mb-2"
               />
-              {!isMinimized && "Courses"}
+              {!isMinimized && "Cursos"}
             </a>
-            {user?.role === "admin" && (
-              <>
-                <a
-                  href="/admin/courses"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
-                >
-                  <span>📚</span>
-                  {!isMinimized && "Courses"}
-                </a>
-                <a
-                  href="/admin/users"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
-                >
-                  <span>👥</span>
-                  {!isMinimized && "Users"}
-                </a>
-                <a
-                  href="/admin/students"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
-                >
-                  <span>🎓</span>
-                  {!isMinimized && "Students (list)"}
-                </a>
-                <a
-                  href="/admin/teachers"
-                  className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
-                >
-                  <span>👩‍🏫</span>
-                  {!isMinimized && "Teachers (list)"}
-                </a>
-              </>
-            )}
           </div>
 
           <div className={`border-t border-white ${isMinimized ? "my-4" : "my-1"}`}></div>
@@ -161,17 +141,31 @@ export default function SideBar({ user }: SideBarProps) {
             >
               General
             </h2>
-            <a
-              href="/notifications"
-              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
-            >
-              <img
-                src="/assets/iconos/ojo_abierto.png"
-                alt="Notifications Icon"
-                className="w-6 h-6 mb-2"
-              />
-              {!isMinimized && "Notifications"}
-            </a>
+            {user?.role === "estudiante" ? (
+              <a
+                href="/communicate"
+                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
+              >
+                <img
+                  src="/assets/iconos/telephone.png"
+                  alt="Communicate Icon"
+                  className="w-6 h-6 mb-2"
+                />
+                {!isMinimized && "Comunicarse"}
+              </a>
+            ) : (
+              <a
+                href="/metrics"
+                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
+              >
+                <img
+                  src="/assets/iconos/ojo_abierto.png"
+                  alt="Metrics Icon"
+                  className="w-6 h-6 mb-2"
+                />
+                {!isMinimized && "Métricas"}
+              </a>
+            )}
             <a
               href="/Materials"
               className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
@@ -205,7 +199,7 @@ export default function SideBar({ user }: SideBarProps) {
                 alt="Settings Icon"
                 className="w-6 h-6"
               />
-              {!isMinimized && "Settings"}
+              {!isMinimized && "Configuración Usuario"}
             </a>
             <a
               href="/"
@@ -226,7 +220,7 @@ export default function SideBar({ user }: SideBarProps) {
 
         {/* Información del usuario */}
         <div
-          className={`mt-auto w-full flex items-center gap-4 px-4 py-4 border-t border-white ${
+          className={`w-full flex items-center gap-4 px-4 py-4 border-t border-white flex-shrink-0 ${
             isMinimized ? "justify-center" : "justify-start"
           }`}
         >
