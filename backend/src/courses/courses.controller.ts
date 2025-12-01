@@ -91,7 +91,7 @@ export class CoursesController {
         fileIsRequired: false,
       }),
     )
-    file?: Express.Multer.File,
+    file?: any,
   ) {
     return this.coursesService.create(
       createCourseDto,
@@ -209,7 +209,7 @@ export class CoursesController {
         fileIsRequired: false,
       }),
     )
-    file?: Express.Multer.File,
+    file?: any,
   ) {
     return this.coursesService.update(id, updateCourseDto, file);
   }
@@ -336,7 +336,7 @@ export class CoursesController {
         validators: [new FileTypeValidator({ fileType: 'pdf' })],
       }),
     )
-    file: Express.Multer.File,
+    file: any,
   ) {
     return this.coursesService.update(id, {}, file);
   }

@@ -17,7 +17,6 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess, teacherI
     name: '',
     description: '',
     studentIds: '',
-    piaa_syllabus: '',
   });
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,11 +41,6 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess, teacherI
         });
       }
       
-      // Agregar piaa_syllabus si se proporciona
-      if (formData.piaa_syllabus.trim()) {
-        formDataToSend.append('piaa_syllabus', formData.piaa_syllabus);
-      }
-      
       // Agregar archivo si se proporciona
       if (file) {
         formDataToSend.append('file', file);
@@ -66,7 +60,7 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess, teacherI
       }
       
       // Limpiar formulario
-      setFormData({ name: '', description: '', studentIds: '', piaa_syllabus: '' });
+      setFormData({ name: '', description: '', studentIds: '' });
       setFile(null);
       
       // Llamar al callback de éxito
@@ -97,7 +91,7 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess, teacherI
 
   const handleClose = () => {
     if (!loading) {
-      setFormData({ name: '', description: '', studentIds: '', piaa_syllabus: '' });
+      setFormData({ name: '', description: '', studentIds: '' });
       setFile(null);
       setError(null);
       onClose();
@@ -194,31 +188,15 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess, teacherI
             />
           </div>
 
-          {/* PIAA Syllabus Field (Optional) */}
-          <div>
-            <label htmlFor="piaa_syllabus" className="block text-sm font-medium text-gray-300 mb-2">
-              PIAA Syllabus <span className="text-gray-500">(opcional)</span>
-            </label>
-            <input
-              type="text"
-              id="piaa_syllabus"
-              name="piaa_syllabus"
-              value={formData.piaa_syllabus}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-full px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder="URL o texto del syllabus"
-            />
-          </div>
-
           {/* File Upload Field (Optional) */}
           <div>
             <label htmlFor="file" className="block text-sm font-medium text-gray-300 mb-2">
-              Archivo <span className="text-gray-500">(opcional)</span>
+              PIA (PDF) <span className="text-gray-500">(opcional)</span>
             </label>
             <input
               type="file"
               id="file"
+              accept=".pdf"
               onChange={handleFileChange}
               disabled={loading}
               className="w-full px-4 py-3 bg-[#0f0f1e] border border-gray-700 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#6356E5] file:text-white hover:file:bg-[#4f48c7] file:cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#6356E5] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"

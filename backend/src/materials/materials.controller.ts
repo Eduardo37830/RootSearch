@@ -10,7 +10,11 @@ import {
   Query,
   Res,
   NotFoundException,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import {
   ApiTags,
@@ -19,6 +23,8 @@ import {
   ApiParam,
   ApiBearerAuth,
   ApiQuery,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { MaterialsService } from './materials.service';
 import { PdfExporterService } from './services/pdf-exporter.service';
@@ -37,6 +43,43 @@ export class MaterialsController {
     private readonly materialsService: MaterialsService,
     private readonly pdfExporter: PdfExporterService,
   ) {}
+
+  @Post('upload-audio')
+  @Roles('administrador', 'docente')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: 'Subir audio, transcribir y generar materiales',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Archivo de audio y ID del curso',
+    schema: {
+      type: 'object',
+      properties: {
+        courseId: { type: 'string' },
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  async uploadAudio(
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: true,
+      }),
+    )
+    file: Express.Multer.File,
+    @Body('courseId') courseId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.materialsService.processAudioForCourse(
+      file,
+      courseId,
+      user._id,
+    );
+  }
 
   // 1. Generar SOLO Resumen
   @Post(':id/resumen')

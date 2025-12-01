@@ -26,15 +26,21 @@ export class CoursesService {
   async create(
     createCourseDto: CreateCourseDto,
     user?: UserDocument,
-    file?: Express.Multer.File,
+    file?: any
   ): Promise<Course> {
     let piaaText = createCourseDto.piaa_syllabus || '';
+    let piaBase64 = createCourseDto.pia || '';
 
-    // Si el docente subió un PDF, extraemos el texto
+    // Si el docente subió un PDF, lo guardamos como Base64 en el campo 'pia'
     if (file) {
       try {
+        // Convertir buffer a Base64
+        piaBase64 = file.buffer.toString('base64');
+        
+        // Opcional: Si aún queremos extraer texto para búsquedas, podemos dejarlo,
+        // pero la prioridad ahora es guardar el archivo.
+        // Por ahora, mantenemos la extracción de texto como secundario si se desea.
         const data = await pdf(file.buffer);
-        // Limpiamos un poco el texto (saltos de línea excesivos)
         piaaText = data.text.replace(/\n+/g, '\n');
       } catch (error) {
         console.error('Error al procesar el PDF del PIAA', error);
@@ -69,7 +75,7 @@ export class CoursesService {
       description: createCourseDto.description,
       photo: createCourseDto.photo,
       piaa_syllabus: piaaText,
-      pia: createCourseDto.pia,
+      pia: piaBase64,
       teacher: new Types.ObjectId(createCourseDto.teacherId),
       students: createCourseDto.studentIds
         ? createCourseDto.studentIds.map((id) => new Types.ObjectId(id))
@@ -142,7 +148,7 @@ export class CoursesService {
   async update(
     id: string,
     updateCourseDto: UpdateCourseDto,
-    file?: Express.Multer.File,
+    file?: any
   ): Promise<Course> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('ID de curso inválido');
@@ -154,18 +160,25 @@ export class CoursesService {
       throw new NotFoundException(`Curso con ID ${id} no encontrado`);
     }
 
-    // Lógica de actualización de PIAA Syllabus
+    // Lógica de actualización de PIAA Syllabus y PIA Base64
     if (file) {
       try {
+        // Guardar PDF como Base64
+        course.pia = file.buffer.toString('base64');
+
+        // Extraer texto para piaa_syllabus
         const data = await pdf(file.buffer);
-        // Limpiamos un poco el texto (saltos de línea excesivos)
         course.piaa_syllabus = data.text.replace(/\n+/g, '\n');
       } catch (error) {
         console.error('Error al procesar el PDF del PIAA en update', error);
       }
-    } else if (updateCourseDto.piaa_syllabus !== undefined) {
-      // Permitir borrar (string vacío) o actualizar manualmente
-      course.piaa_syllabus = updateCourseDto.piaa_syllabus;
+    } else {
+      if (updateCourseDto.piaa_syllabus !== undefined) {
+        course.piaa_syllabus = updateCourseDto.piaa_syllabus;
+      }
+      if (updateCourseDto.pia !== undefined) {
+        course.pia = updateCourseDto.pia;
+      }
     }
 
     // Si se actualiza el profesor, verificar que existe y tiene rol DOCENTE
@@ -202,7 +215,6 @@ export class CoursesService {
     if (updateCourseDto.description)
       course.description = updateCourseDto.description;
     if (updateCourseDto.photo) course.photo = updateCourseDto.photo;
-    if (updateCourseDto.pia) course.pia = updateCourseDto.pia;
     if (updateCourseDto.active !== undefined)
       course.active = updateCourseDto.active;
 

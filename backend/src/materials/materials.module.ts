@@ -10,6 +10,7 @@ import {
   Transcription,
   TranscriptionSchema,
 } from '../transcription/schemas/transcription.schema';
+import { TranscriptionModule } from '../transcription/transcription.module';
 import { ContentGenerationModule } from '../content-generation/content-generation.module';
 import { PdfExporterService } from './services/pdf-exporter.service';
 import { AuthModule } from '../auth/auth.module';
@@ -21,6 +22,7 @@ import { AuthModule } from '../auth/auth.module';
       { name: Transcription.name, schema: TranscriptionSchema },
     ]),
     ContentGenerationModule,
+    TranscriptionModule,
     AuthModule,
   ],
   controllers: [MaterialsController],

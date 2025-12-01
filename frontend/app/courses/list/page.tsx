@@ -167,19 +167,20 @@ export default function CoursesListPage() {
                   <th className="py-3 px-4 text-left whitespace-nowrap">Nombre</th>
                   <th className="py-3 px-4 text-left whitespace-nowrap">Descripción</th>
                   <th className="py-3 px-4 text-left whitespace-nowrap">Fecha de creación</th>
+                  <th className="py-3 px-4 text-left whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={3} className="py-6 px-4 text-center">
+                    <td colSpan={4} className="py-6 px-4 text-center">
                       <AiOutlineLoading3Quarters className="animate-spin text-2xl text-[#6356E5] mx-auto" />
                       <span className="block mt-2">Cargando...</span>
                     </td>
                   </tr>
                 ) : courses.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-6 px-4 text-center text-zinc-400">
+                    <td colSpan={4} className="py-6 px-4 text-center text-zinc-400">
                       No hay cursos registrados.
                     </td>
                   </tr>
@@ -201,6 +202,50 @@ export default function CoursesListPage() {
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base">
                         {course.createdAt ? new Date(course.createdAt).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-sm md:text-base">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const token = localStorage.getItem('access_token');
+                            // Usar fetch para manejar headers si es necesario, o abrir directamente si la auth es por cookie/param
+                            // Como es un GET protegido, necesitamos pasar el token.
+                            // Si abrimos en nueva pestaña, no enviamos el header Authorization.
+                            // Una opción es descargar con fetch y crear un blob url.
+                            
+                            // Sin embargo, el endpoint usa @UseGuards(JwtAuthGuard).
+                            // Si abrimos en nueva pestaña, fallará si no hay cookie.
+                            // Asumiremos que el usuario quiere descargar.
+                            
+                            // Mejor enfoque: fetch con blob.
+                            fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courses/${course._id}/pia`, {
+                              headers: {
+                                'Authorization': `Bearer ${token}`
+                              }
+                            })
+                            .then(response => {
+                              if (!response.ok) throw new Error('Error al descargar PIA');
+                              return response.blob();
+                            })
+                            .then(blob => {
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `PIA_${course.name.replace(/\s+/g, '_')}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                              document.body.removeChild(a);
+                            })
+                            .catch(err => {
+                              console.error(err);
+                              alert('No se pudo descargar el PIA. Asegúrese de que exista.');
+                            });
+                          }}
+                          className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-3 py-1 rounded text-sm transition z-10 relative"
+                        >
+                          Ver PIA
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -315,6 +360,38 @@ export default function CoursesListPage() {
                     <p className="text-gray-300 text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed">
                       {courses[currentIndex]?.description}
                     </p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click if any
+                        const token = localStorage.getItem('access_token');
+                        fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courses/${courses[currentIndex]?._id}/pia`, {
+                          headers: {
+                            'Authorization': `Bearer ${token}`
+                          }
+                        })
+                        .then(response => {
+                          if (!response.ok) throw new Error('Error al descargar PIA');
+                          return response.blob();
+                        })
+                        .then(blob => {
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `PIA_${courses[currentIndex]?.name.replace(/\s+/g, '_')}.pdf`;
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+                        })
+                        .catch(err => {
+                          console.error(err);
+                          alert('No se pudo descargar el PIA. Asegúrese de que exista.');
+                        });
+                      }}
+                      className="mt-4 self-start bg-white text-[#6356E5] px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition shadow-md"
+                    >
+                      Ver PIA
+                    </button>
                   </div>
                 </div>
 
