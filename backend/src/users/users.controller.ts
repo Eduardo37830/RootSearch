@@ -21,6 +21,8 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../auth/schemas/user.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -52,6 +54,29 @@ export class UsersController {
   })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Get('my-teachers')
+  @Roles('estudiante')
+  @ApiOperation({
+    summary: 'Obtener profesores de mis cursos (Solo Estudiantes)',
+    description:
+      'Obtiene la información de contacto de los profesores de todos los cursos en los que está inscrito el estudiante autenticado.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de profesores y cursos obtenida exitosamente.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acceso denegado. Solo estudiantes.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Estudiante no encontrado.',
+  })
+  getMyTeachers(@CurrentUser() user: User) {
+    return this.usersService.getMyTeachers((user as any)._id);
   }
 
   @Get()
