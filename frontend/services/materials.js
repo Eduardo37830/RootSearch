@@ -1,6 +1,8 @@
 // Servicios para materiales de cursos
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+// ========== Funciones de tu versión (basic_front) ==========
 
 /**
  * Descarga un archivo de material por su ID
@@ -198,11 +200,11 @@ export async function exportMaterialToPdf(id) {
 }
 
 /**
- * Publica un material para hacerlo visible a los estudiantes
+ * Publica un material para hacerlo visible a los estudiantes (versión detallada)
  * @param {string} id - ID del material
  * @returns {Promise<Object>} - Material actualizado
  */
-export async function publishMaterial(id) {
+export async function publishMaterialDetailed(id) {
   const token = localStorage.getItem("access_token");
   if (!token) {
     throw new Error("No se encontró un token de acceso. Por favor, inicia sesión.");
@@ -235,3 +237,97 @@ export async function publishMaterial(id) {
 
   return res.json();
 }
+
+// ========== Funciones de la versión de JuanDiego ==========
+
+/**
+ * Obtiene todos los materiales de un curso
+ * @param {string} courseId - ID del curso
+ * @returns {Promise<Object>} - Lista de materiales
+ */
+export const getMaterialsByCourse = async (courseId) => {
+  const token = localStorage.getItem('access_token');
+  const response = await fetch(`${API_URL}/materials/course/${courseId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!response.ok) throw new Error('Error fetching materials');
+  return response.json();
+};
+
+/**
+ * Obtiene un material por su ID
+ * @param {string} id - ID del material
+ * @returns {Promise<Object>} - Datos del material
+ */
+export const getMaterialById = async (id) => {
+  const token = localStorage.getItem('access_token');
+  const response = await fetch(`${API_URL}/materials/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!response.ok) throw new Error('Error fetching material');
+  return response.json();
+};
+
+/**
+ * Sube un audio y genera contenido automáticamente
+ * @param {string} courseId - ID del curso
+ * @param {File} file - Archivo de audio
+ * @returns {Promise<Object>} - Respuesta del servidor
+ */
+export const uploadAudioAndGenerate = async (courseId, file) => {
+  const token = localStorage.getItem('access_token');
+  const formData = new FormData();
+  formData.append('courseId', courseId);
+  formData.append('file', file);
+
+  const response = await fetch(`${API_URL}/materials/upload-audio`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  if (!response.ok) throw new Error('Error uploading audio');
+  return response.json();
+};
+
+/**
+ * Actualiza un material existente
+ * @param {string} id - ID del material
+ * @param {Object} data - Datos a actualizar
+ * @returns {Promise<Object>} - Material actualizado
+ */
+export const updateMaterial = async (id, data) => {
+  const token = localStorage.getItem('access_token');
+  const response = await fetch(`${API_URL}/materials/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Error updating material');
+  return response.json();
+};
+
+/**
+ * Publica un material (versión simplificada)
+ * @param {string} id - ID del material
+ * @returns {Promise<Object>} - Material publicado
+ */
+export const publishMaterial = async (id) => {
+  const token = localStorage.getItem('access_token');
+  const response = await fetch(`${API_URL}/materials/${id}/publish`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!response.ok) throw new Error('Error publishing material');
+  return response.json();
+};

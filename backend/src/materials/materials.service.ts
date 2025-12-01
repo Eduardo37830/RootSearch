@@ -1,13 +1,19 @@
 import { Injectable, NotFoundException, Inject, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Transcription } from '../transcription/schemas/transcription.schema';
 import { GeneratedMaterial } from './schemas/material.schema';
 import {
   CONTENT_GENERATOR,
   IContentGenerator,
-} from '../content-generation/content-generation.interface';
+} from '../content-generation/adapters/content-generation.interface';
+import {
+  TRANSCRIPTOR_SERVICE,
+  ITranscriptor,
+} from '../transcription/transcription.interface';
 import { EmailService } from '../auth/services/email.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class MaterialsService {
@@ -19,8 +25,48 @@ export class MaterialsService {
     @InjectModel(GeneratedMaterial.name)
     private materialModel: Model<GeneratedMaterial>,
     @Inject(CONTENT_GENERATOR) private contentGenerator: IContentGenerator,
+    @Inject(TRANSCRIPTOR_SERVICE) private transcriptor: ITranscriptor,
     private emailService: EmailService,
-  ) {}
+  ) { }
+
+  async processAudioForCourse(
+    file: Express.Multer.File,
+    courseId: string,
+    userId: string,
+  ) {
+    // 1. Guardar archivo temporalmente
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const filePath = path.join(uploadDir, `${Date.now()}-${file.originalname}`);
+    fs.writeFileSync(filePath, file.buffer);
+
+    try {
+      // 2. Transcribir
+      const text = await this.transcriptor.transcribir(filePath, 'es');
+
+      // 3. Guardar Transcripción
+      const newTranscription = new this.transcriptionModel({
+        userId: new Types.ObjectId(userId),
+        courseId: new Types.ObjectId(courseId),
+        text: text,
+        originalFileName: file.originalname,
+        fileSize: file.size,
+        status: 'completed',
+        language: 'es',
+      });
+      const savedTranscription = await newTranscription.save();
+
+      // 4. Generar Materiales
+      return this.generarTodoSecuencial(savedTranscription._id.toString());
+    } finally {
+      // 5. Limpiar archivo temporal
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+  }
 
   async generarTodoSecuencial(transcriptionId: string) {
     // 1. Buscar la transcripción existente
@@ -180,12 +226,30 @@ export class MaterialsService {
   }
 
   async publish(id: string) {
-    const material = await this.materialModel.findById(id);
+    const material = await this.materialModel
+      .findById(id)
+      .populate({
+        path: 'transcriptionId',
+        populate: { path: 'userId' },
+      });
+
     if (!material) {
       throw new NotFoundException(`Material con ID ${id} no encontrado`);
     }
     material.estado = 'PUBLICADO';
-    return material.save();
+    const savedMaterial = await material.save();
+
+    // Enviar correo al docente
+    const transcription = material.transcriptionId as any;
+    if (transcription && transcription.userId && transcription.userId.email) {
+      await this.emailService.sendNotificationEmail(
+        transcription.userId.email,
+        'Material Publicado 🚀',
+        `Has publicado el material para el curso. Ahora es visible para los estudiantes.`,
+      );
+    }
+
+    return savedMaterial;
   }
 
   async update(id: string, updateMaterialDto: any) {

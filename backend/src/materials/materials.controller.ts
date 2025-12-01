@@ -10,8 +10,13 @@ import {
   Query,
   Res,
   NotFoundException,
+  UseInterceptors,
+  UploadedFile,
+  UploadedFiles,
+  ParseFilePipe,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { Response, Express } from 'express';
 import {
   ApiBody,
   ApiConsumes,
@@ -26,9 +31,6 @@ import { MaterialsService } from './materials.service';
 import { MaterialUploadService } from './services/material-upload.service';
 import { UploadMaterialDto } from './dto/upload-material.dto';
 import { UploadMaterialResponseDto } from './dto/upload-material-response.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
-import { UseInterceptors, UploadedFiles } from '@nestjs/common';
-import { Express } from 'express';
 import { PdfExporterService } from './services/pdf-exporter.service';
 import { UpdateMaterialDto } from './dto/update-material.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -46,6 +48,43 @@ export class MaterialsController {
     private readonly pdfExporter: PdfExporterService,
     private readonly uploadService: MaterialUploadService,
   ) {}
+
+  @Post('upload-audio')
+  @Roles('administrador', 'docente')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: 'Subir audio, transcribir y generar materiales',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Archivo de audio y ID del curso',
+    schema: {
+      type: 'object',
+      properties: {
+        courseId: { type: 'string' },
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  async uploadAudio(
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: true,
+      }),
+    )
+    file: Express.Multer.File,
+    @Body('courseId') courseId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.materialsService.processAudioForCourse(
+      file,
+      courseId,
+      user._id,
+    );
+  }
 
   // 1. Generar SOLO Resumen
   @Post(':id/resumen')
