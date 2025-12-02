@@ -291,5 +291,12 @@ export async function deleteUser(userId) {
     throw new Error(errorText || "Error al eliminar el usuario");
   }
 
-  return res.json();
+  // Si la respuesta es 204 No Content, no hay JSON que parsear
+  if (res.status === 204) {
+    return { success: true };
+  }
+
+  // Verificar si hay contenido antes de parsear JSON
+  const text = await res.text();
+  return text ? JSON.parse(text) : { success: true };
 }

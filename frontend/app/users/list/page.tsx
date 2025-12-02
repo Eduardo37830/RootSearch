@@ -102,15 +102,15 @@ export default function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar al usuario "${userName}"? Esta acción no se puede deshacer.`)) {
-      return;
-    }
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
 
-    setDeletingUserId(userId);
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setDeletingUserId(userToDelete.id);
     try {
-      await deleteUser(userId);
-      setToast({ message: `Usuario "${userName}" eliminado exitosamente`, type: "success" });
+      await deleteUser(userToDelete.id);
+      setToast({ message: `Usuario "${userToDelete.name}" eliminado exitosamente`, type: "success" });
       
       // Recargar la lista de usuarios
       const allUsers = await getAllUsers();
@@ -121,6 +121,7 @@ export default function UsersPage() {
       setToast({ message: error.message || "Error al eliminar el usuario", type: "error" });
     } finally {
       setDeletingUserId(null);
+      setUserToDelete(null);
     }
   };
 
@@ -306,13 +307,13 @@ export default function UsersPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteUser(user._id!, user.name);
+                            setUserToDelete({ id: user._id!, name: user.name });
                           }}
                           disabled={isDeleting}
                           className={`${
                             isDeleting 
                               ? 'bg-gray-500 cursor-not-allowed' 
-                              : 'bg-red-600 hover:bg-red-700'
+                              : 'bg-red-600 hover:bg-red-700 cursor-pointer'
                           } text-white px-3 py-1 rounded-lg transition text-xs sm:text-sm flex items-center gap-1 mx-auto`}
                           title="Eliminar usuario"
                         >
@@ -341,6 +342,51 @@ export default function UsersPage() {
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleCreateUserSuccess}
       />
+
+      {/* Modal de confirmación de eliminación */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101434] rounded-lg shadow-2xl max-w-md w-full border border-[#333]">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-600/20 rounded-full">
+                <FaTrash className="text-3xl text-red-500" />
+              </div>
+              <h2 className="text-xl font-bold text-white text-center mb-2">
+                ¿Eliminar usuario?
+              </h2>
+              <p className="text-zinc-400 text-center mb-6">
+                ¿Estás seguro de que deseas eliminar al usuario{" "}
+                <span className="text-white font-semibold">"{userToDelete.name}"</span>?
+                <br />
+                <span className="text-red-400 text-sm">Esta acción no se puede deshacer.</span>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setUserToDelete(null)}
+                  disabled={deletingUserId === userToDelete.id}
+                  className="flex-1 bg-[#333] hover:bg-[#444] text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={deletingUserId === userToDelete.id}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {deletingUserId === userToDelete.id ? (
+                    <>
+                      <AiOutlineLoading3Quarters className="animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    "Eliminar"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast de notificaciones */}
       {toast && (

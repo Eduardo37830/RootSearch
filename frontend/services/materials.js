@@ -395,3 +395,37 @@ export const publishMaterial = async (id) => {
   if (!response.ok) throw new Error('Error publishing material');
   return response.json();
 };
+
+/**
+ * Obtiene todos los materiales de los cursos en los que está inscrito un estudiante
+ * @param {string} studentId - ID del estudiante
+ * @returns {Promise<Array>} - Lista de materiales agrupados por curso
+ */
+export async function getStudentCourseMaterials(studentId) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('No se encontró un token de acceso. Por favor, inicia sesión.');
+  }
+
+  const res = await fetch(`${API_URL}/materials/student/${studentId}/course-materials`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 401) {
+    throw new Error('No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.');
+  }
+
+  if (res.status === 404) {
+    throw new Error('Estudiante no encontrado.');
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || 'Error al obtener los materiales del estudiante');
+  }
+
+  return res.json();
+}

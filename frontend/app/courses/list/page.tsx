@@ -658,7 +658,7 @@ export default function CoursesListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#101434] via-[#242638] to-[#101434] p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-[#040418] p-4 sm:p-6 md:p-8">
       {/* Logo */}
       <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-8 md:left-8 z-20">
         <button
@@ -718,11 +718,11 @@ export default function CoursesListPage() {
               <>
                 {/* Previous Card Preview */}
                 <div className="hidden lg:block w-48 xl:w-64 transform scale-75 opacity-40 transition-all duration-300">
-                  <div className="bg-gradient-to-br from-[#23233a] to-[#2a2a3a] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
+                  <div className="bg-[#1a1a2e] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
                     <h2 className="text-lg lg:text-xl xl:text-2xl font-bold text-white mb-2 lg:mb-3 xl:mb-4">
                       {courses[getPreviousIndex()]?.name}
                     </h2>
-                    <p className="text-gray-300 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
+                    <p className="text-zinc-400 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
                       {courses[getPreviousIndex()]?.description}
                     </p>
                   </div>
@@ -753,7 +753,7 @@ export default function CoursesListPage() {
                     <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 md:mb-6">
                       {courses[currentIndex]?.name}
                     </h2>
-                    <p className="text-gray-300 text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed">
+                    <p className="text-zinc-300 text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed">
                       {courses[currentIndex]?.description}
                     </p>
                   </div>
@@ -761,11 +761,11 @@ export default function CoursesListPage() {
 
                 {/* Next Card Preview */}
                 <div className="hidden lg:block w-48 xl:w-64 transform scale-75 opacity-40 transition-all duration-300">
-                  <div className="bg-gradient-to-br from-[#23233a] to-[#2a2a3a] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
+                  <div className="bg-[#1a1a2e] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
                     <h2 className="text-lg lg:text-xl xl:text-2xl font-bold text-white mb-2 lg:mb-3 xl:mb-4">
                       {courses[getNextIndex()]?.name}
                     </h2>
-                    <p className="text-gray-300 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
+                    <p className="text-zinc-400 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
                       {courses[getNextIndex()]?.description}
                     </p>
                   </div>
@@ -802,8 +802,8 @@ export default function CoursesListPage() {
               }}
               className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 cursor-pointer ${
                 index === currentIndex
-                  ? 'w-6 sm:w-8 bg-blue-400'
-                  : 'w-1.5 sm:w-2 bg-gray-600 hover:bg-gray-500'
+                  ? 'w-6 sm:w-8 bg-[#6356E5]'
+                  : 'w-1.5 sm:w-2 bg-zinc-600 hover:bg-zinc-500'
               }`}
               aria-label={`Go to course ${index + 1}`}
             />
