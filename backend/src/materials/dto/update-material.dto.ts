@@ -38,16 +38,6 @@ class QuizItemDto {
   justificacion: string;
 }
 
-class ChecklistItemDto {
-  @ApiProperty()
-  @IsString()
-  task: string;
-
-  @ApiProperty()
-  @IsOptional()
-  completed: boolean;
-}
-
 export class UpdateMaterialDto {
   @ApiProperty({ required: false })
   @IsOptional()
@@ -68,12 +58,11 @@ export class UpdateMaterialDto {
   @Type(() => QuizItemDto)
   quiz?: QuizItemDto[];
 
-  @ApiProperty({ type: [ChecklistItemDto], required: false })
+  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ChecklistItemDto)
-  checklist?: ChecklistItemDto[];
+  @IsString({ each: true })
+  checklist?: string[];
 
   @ApiProperty({
     required: false,

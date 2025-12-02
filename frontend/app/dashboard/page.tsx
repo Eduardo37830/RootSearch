@@ -43,7 +43,7 @@ export default function Dashboard() {
     resumen: string;
     glosario: any[];
     quiz: any[];
-    checklist: any[];
+    checklist: string[];
     estado: string;
     index: number;
   } | null>(null);
@@ -54,7 +54,7 @@ export default function Dashboard() {
   const [editedContent, setEditedContent] = useState<{
     resumen: string;
     glosario: any[];
-    checklist: any[];
+    checklist: string[];
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -735,42 +735,19 @@ export default function Dashboard() {
                 <div>
                   {isEditingContent && editedContent ? (
                     <div className="space-y-2">
-                      {editedContent.checklist.map((item: any, index: number) => (
+                      {editedContent.checklist.map((item: string, index: number) => (
                         <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a] flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={item.completado || item.completed || false}
-                            onChange={(e) => {
-                              const updatedChecklist = [...editedContent.checklist];
-                              updatedChecklist[index] = { ...item, completado: e.target.checked };
-                              setEditedContent({ ...editedContent, checklist: updatedChecklist });
-                            }}
-                            className="mt-1 cursor-pointer"
-                          />
-                          <div className="flex-1">
-                            <input
-                              type="text"
-                              value={item.tarea || item.item || ''}
+                          <div className="flex-1 w-full">
+                            <textarea
+                              value={item}
                               onChange={(e) => {
                                 const updatedChecklist = [...editedContent.checklist];
-                                updatedChecklist[index] = { ...item, tarea: e.target.value };
+                                updatedChecklist[index] = e.target.value;
                                 setEditedContent({ ...editedContent, checklist: updatedChecklist });
                               }}
-                              className="w-full bg-[#151540] text-white rounded px-3 py-2 border border-[#6356E5] focus:outline-none"
-                              placeholder="Tarea"
+                              className="w-full bg-[#151540] text-white rounded px-3 py-2 border border-[#6356E5] focus:outline-none resize-none h-20"
+                              placeholder="Punto de checklist"
                             />
-                            {item.descripcion && (
-                              <textarea
-                                value={item.descripcion}
-                                onChange={(e) => {
-                                  const updatedChecklist = [...editedContent.checklist];
-                                  updatedChecklist[index] = { ...item, descripcion: e.target.value };
-                                  setEditedContent({ ...editedContent, checklist: updatedChecklist });
-                                }}
-                                className="w-full bg-[#151540] text-white/60 text-sm rounded px-3 py-2 border border-[#6356E5] focus:outline-none resize-none h-16 mt-2"
-                                placeholder="Descripción"
-                              />
-                            )}
                             <button
                               onClick={() => {
                                 const updatedChecklist = editedContent.checklist.filter((_, i) => i !== index);
@@ -785,31 +762,21 @@ export default function Dashboard() {
                       ))}
                       <button
                         onClick={() => {
-                          const newItem = { tarea: '', descripcion: '', completado: false };
-                          setEditedContent({ ...editedContent, checklist: [...editedContent.checklist, newItem] });
+                          setEditedContent({ ...editedContent, checklist: [...editedContent.checklist, ''] });
                         }}
                         className="w-full bg-[#6356E5] hover:bg-[#7a6eff] text-white px-4 py-2 rounded-lg transition font-medium"
                       >
-                        + Agregar Tarea
+                        + Agregar Punto
                       </button>
                     </div>
                   ) : (
                     <div>
                       {selectedGeneratedContent?.checklist.length > 0 ? (
                         <div className="space-y-2">
-                          {selectedGeneratedContent.checklist.map((item: any, index: number) => (
+                          {selectedGeneratedContent.checklist.map((item: string, index: number) => (
                             <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a] flex items-start gap-3">
-                              <input
-                                type="checkbox"
-                                disabled
-                                defaultChecked={item.completado || item.completed || false}
-                                className="mt-1 cursor-not-allowed"
-                              />
-                              <div>
-                                <p className="text-white">{item.tarea || item.item || `Tarea ${index + 1}`}</p>
-                                {item.descripcion && (
-                                  <p className="text-white/60 text-sm">{item.descripcion}</p>
-                                )}
+                              <div className="flex-1">
+                                <p className="text-white whitespace-pre-wrap break-words">{item}</p>
                               </div>
                             </div>
                           ))}
