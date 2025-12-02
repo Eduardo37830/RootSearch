@@ -367,15 +367,29 @@ export const uploadAudioAndGenerate = async (courseId, file) => {
  */
 export const updateMaterial = async (id, data) => {
   const token = localStorage.getItem('access_token');
+  
+  // Limpiar datos vacíos del glosario, quiz y checklist
+  const cleanData = {
+    ...data,
+    glosario: data.glosario?.filter(item => item.term && item.definition) || [],
+    quiz: data.quiz?.filter(q => q.pregunta && q.opciones?.length > 0) || [],
+    checklist: data.checklist?.filter(item => item && item.trim()) || []
+  };
+  
   const response = await fetch(`${API_URL}/materials/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(cleanData),
   });
-  if (!response.ok) throw new Error('Error updating material');
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Error al actualizar material: ${response.statusText}`);
+  }
+  
   return response.json();
 };
 
