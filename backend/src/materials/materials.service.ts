@@ -1,8 +1,12 @@
-import { Injectable, NotFoundException, Inject, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, Logger, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Transcription } from '../transcription/schemas/transcription.schema';
 import { GeneratedMaterial } from './schemas/material.schema';
+import { CourseMaterial } from './schemas/course-material.schema';
+import { Course } from '../courses/schemas/course.schema';
+import { User } from '../auth/schemas/user.schema';
+import { Role } from '../auth/schemas/role.schema';
 import {
   CONTENT_GENERATOR,
   IContentGenerator,
@@ -12,6 +16,8 @@ import {
   ITranscriptor,
 } from '../transcription/transcription.interface';
 import { EmailService } from '../auth/services/email.service';
+import { StudentCourseMaterialDto } from './dto/student-course-material.dto';
+import { FILE_STORAGE, IFileStorage } from './storage/file-storage.interface';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -24,8 +30,15 @@ export class MaterialsService {
     private transcriptionModel: Model<Transcription>,
     @InjectModel(GeneratedMaterial.name)
     private materialModel: Model<GeneratedMaterial>,
+    @InjectModel(CourseMaterial.name)
+    private courseMaterialModel: Model<CourseMaterial>,
+    @InjectModel(Course.name)
+    private courseModel: Model<Course>,
+    @InjectModel(User.name)
+    private userModel: Model<User>,
     @Inject(CONTENT_GENERATOR) private contentGenerator: IContentGenerator,
     @Inject(TRANSCRIPTOR_SERVICE) private transcriptor: ITranscriptor,
+    @Inject(FILE_STORAGE) private storage: IFileStorage,
     private emailService: EmailService,
   ) { }
 
@@ -270,5 +283,88 @@ export class MaterialsService {
       throw new NotFoundException(`Material con ID ${id} no encontrado`);
     }
     return deletedMaterial;
+  }
+
+  async getStudentCourseMaterials(
+    studentId: string,
+    requestingUserId: string,
+  ): Promise<StudentCourseMaterialDto[]> {
+    if (!Types.ObjectId.isValid(studentId)) {
+      throw new BadRequestException('ID de estudiante inválido');
+    }
+
+    if (!Types.ObjectId.isValid(requestingUserId)) {
+      throw new BadRequestException('ID de usuario solicitante inválido');
+    }
+
+    // Verificar que el usuario existe y obtener sus roles
+    const student = await this.userModel
+      .findById(studentId)
+      .populate('roles', 'name')
+      .exec();
+
+    if (!student) {
+      throw new NotFoundException('Estudiante no encontrado');
+    }
+
+    // Verificar que el usuario tiene el rol de estudiante
+    const roles = student.roles as Role[];
+    const isStudent = roles.some(
+      (role) => role.name.toLowerCase() === 'estudiante',
+    );
+
+    if (!isStudent) {
+      throw new BadRequestException(
+        'El usuario especificado no tiene el rol de estudiante',
+      );
+    }
+
+    // Verificar que el usuario solicitante es el mismo estudiante
+    const studentIdStr = studentId.toString();
+    const requestingUserIdStr = requestingUserId.toString();
+
+    if (studentIdStr !== requestingUserIdStr) {
+      throw new BadRequestException(
+        'Solo puedes consultar tus propios materiales de curso',
+      );
+    }
+
+    // Buscar todos los cursos en los que está inscrito el estudiante
+    const courses = await this.courseModel
+      .find({ students: new Types.ObjectId(studentId) })
+      .select('_id name')
+      .exec();
+
+    if (!courses || courses.length === 0) {
+      return [];
+    }
+
+    // Obtener IDs de cursos
+    const courseIds = courses.map((c) => c._id);
+
+    // Buscar todos los materiales de estos cursos
+    const materials = await this.courseMaterialModel
+      .find({ courseId: { $in: courseIds } })
+      .exec();
+
+    // Mapear a DTOs con información del curso y URL de acceso
+    const result: StudentCourseMaterialDto[] = materials.map((material) => {
+      const course = courses.find(
+        (c) => c._id.toString() === material.courseId.toString(),
+      );
+
+      return {
+        courseName: course?.name || 'Curso desconocido',
+        courseId: material.courseId.toString(),
+        materialId: String((material as any)._id),
+        title: material.title,
+        description: material.description,
+        type: material.type,
+        originalName: material.originalName,
+        storageRef: this.storage.getAccessUrl(material.storageRef),
+      };
+    });
+
+    return result;
   }
 }
