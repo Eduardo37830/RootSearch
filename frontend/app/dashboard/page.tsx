@@ -4,7 +4,7 @@ import React from "react";
 import SideBar from "@/components/SideBar";
 import { getUserProfile } from "@/services/users";
 import { getAllStudents } from "@/services/students";
-import { getCoursesByTeacher, getCourseById, getAllCoursesForAdmin } from "@/services/courses";
+import { getCoursesByTeacher, getCourseById, getAllCoursesForAdmin, getAllCourses } from "@/services/courses";
 import { uploadAudio } from "@/services/audio";
 import { getGeneratedContentByCourse, publishMaterial, updateMaterial } from "@/services/generated-content";
 import {
@@ -80,7 +80,7 @@ export default function Dashboard() {
 
         setUser({ id: userData._id, name: userData.name, role });
 
-        // Cargar estudiantes si es necesario
+        // Cargar cursos según el rol
         if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
           const studentsData = await getAllStudents();
           setStudents(studentsData);
@@ -124,6 +124,23 @@ export default function Dashboard() {
           );
           
           setTeacherCourses(sortedCourses);
+        } else if (role.toLowerCase() === "estudiante") {
+          // Para estudiantes: obtener cursos en los que está inscrito (solo con parámetro student)
+          const courses = await getAllCourses(userData._id, 'student');
+          
+          // Ordenar por fecha de creación (más recientes primero)
+          const sortedCourses = courses.sort((a: any, b: any) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          
+          setTeacherCourses(sortedCourses);
+          
+          // Métricas para estudiantes
+          // Por ahora solo contamos cursos, el conteo de materiales se implementará después
+          setMetrics({
+            coursesCount: courses.length,
+            studentsCount: 0, // Este campo no aplica para estudiantes pero lo dejamos para mantener la estructura
+          });
         }
         
         // Solo cuando TODO esté listo, quitar el loading
@@ -502,17 +519,99 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            <div className="flex flex-col lg:flex-row flex-1 gap-4">
-              <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-white">Material de Clase</h2>
-                <p className="text-sm text-white/90">Aquí se muestra el material de clase dejado.</p>
+            {/* Vista para estudiantes */}
+            <div className="w-full">
+              <h2 className="text-2xl font-bold text-white mb-4">Mis Cursos</h2>
+              {teacherCourses.length > 0 ? (
+                <div className="bg-[#101434] rounded-lg shadow overflow-x-auto">
+                  <table className="w-full text-sm text-white">
+                    <thead>
+                      <tr className="border-b border-[#2a2a4a] bg-[#0f0f2e]">
+                        <th className="px-6 py-4 text-left font-semibold">Nombre del curso</th>
+                        <th className="px-6 py-4 text-center font-semibold">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teacherCourses.slice(0, 5).map((course) => (
+                        <tr key={course._id} className="border-b border-[#2a2a4a] hover:bg-[#151540] transition">
+                          <td className="px-6 py-4 font-medium">{course.name}</td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex gap-2 justify-center flex-wrap">
+                              <button
+                                onClick={() => handleShowPiaa(course._id, course.name)}
+                                className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                              >
+                                Mostrar PIAA
+                              </button>
+                              <button
+                                onClick={() => handleShowGeneratedContent(course._id, course.name)}
+                                disabled={loadingGeneratedContent}
+                                className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                              >
+                                {loadingGeneratedContent ? 'Cargando...' : 'Mostrar Contenido Generado'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-[#101434] rounded-lg shadow p-6 text-center text-white/70">
+                  No estás inscrito en ningún curso.
+                </div>
+              )}
+            </div>
+
+            {/* Métricas para estudiantes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Cantidad de Cursos Inscritos */}
+              <div className="bg-[#101434] rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white/70 text-sm font-medium mb-1">
+                      Cursos Inscritos
+                    </p>
+                    <p className="text-4xl font-bold text-[#6356E5]">
+                      {metrics.coursesCount}
+                    </p>
+                  </div>
+                  <div className="bg-[#6356E5] bg-opacity-20 rounded-full p-4">
+                    <img
+                      src="/assets/iconos/cursos.png"
+                      alt="Courses"
+                      className="w-10 h-10"
+                    />
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm mt-3">
+                  Total de cursos en los que estás matriculado
+                </p>
               </div>
-              <div
-                className={`w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 ${expanded ? 'lg:w-full' : ''}`}
-                onClick={() => setExpanded(!expanded)}
-              >
-                <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
-                <p className="text-sm text-white/90">
+
+              {/* Cantidad de Materiales (placeholder por ahora) */}
+              <div className="bg-[#101434] rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white/70 text-sm font-medium mb-1">
+                      Materiales Disponibles
+                    </p>
+                    <p className="text-4xl font-bold text-[#7a6eff]">
+                      {/* Por implementar: conteo de materiales */}
+                      0
+                    </p>
+                  </div>
+                  <div className="bg-[#7a6eff] bg-opacity-20 rounded-full p-4">
+                    <img
+                      src="/assets/iconos/report.png"
+                      alt="Materials"
+                      className="w-10 h-10"
+                    />
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm mt-3">
+                  Materiales de estudio generados en tus cursos
                 </p>
               </div>
             </div>

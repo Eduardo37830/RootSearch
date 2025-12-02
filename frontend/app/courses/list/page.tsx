@@ -74,8 +74,14 @@ export default function CoursesListPage() {
         // Si es administrador, obtener todos los cursos
         if (user.role.toLowerCase() === "administrador") {
           data = await getAllCoursesForAdmin();
+        } else if (user.role.toLowerCase() === "docente") {
+          // Para docentes, filtrar solo por teacher
+          data = await getAllCourses(user.id, 'teacher');
+        } else if (user.role.toLowerCase() === "estudiante") {
+          // Para estudiantes, filtrar solo por student
+          data = await getAllCourses(user.id, 'student');
         } else {
-          // Para docentes y estudiantes, usar la ruta normal con filtro de usuario
+          // Por defecto, usar ambos filtros
           data = await getAllCourses(user.id);
         }
         

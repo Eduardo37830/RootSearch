@@ -61,13 +61,20 @@ export async function getCoursesByTeacher(teacherId) {
   return response.json();
 }
 
-export async function getAllCourses(userId) {
+export async function getAllCourses(userId, filterType = 'both') {
   const token = localStorage.getItem('access_token');
   let url = `${API_URL}/courses`;
   
-  // Si se proporciona un userId, agregarlo como parámetro query
+  // Si se proporciona un userId, agregarlo como parámetro query según el tipo de filtro
   if (userId) {
-    url += `?teacher=${userId}&student=${userId}`;
+    if (filterType === 'teacher') {
+      url += `?teacher=${userId}`;
+    } else if (filterType === 'student') {
+      url += `?student=${userId}`;
+    } else {
+      // Por defecto, buscar en ambos (para compatibilidad con código existente)
+      url += `?teacher=${userId}&student=${userId}`;
+    }
   }
   
   const response = await fetch(url, {
