@@ -256,12 +256,19 @@ describe('Users E2E', () => {
     });
 
     it('200 admin actualiza usuario', async () => {
-      const current = { ...mockUsers.estudiante, email: 'old@test.com' };
-      const updated = { ...current, name: 'Nuevo Nombre', toObject: () => ({ ...current, name: 'Nuevo Nombre' }) } as any;
+      const updated = { ...mockUsers.estudiante, email: 'old@test.com', name: 'Nuevo Nombre' };
+      const current = {
+        ...mockUsers.estudiante,
+        email: 'old@test.com',
+        save: jest.fn().mockResolvedValue({
+          ...updated,
+          toObject: () => updated,
+        }),
+        toObject: () => updated,
+      } as any;
 
       mockUserModel.findById.mockImplementationOnce(() => chainable(current));
       mockUserModel.findOne.mockImplementationOnce(() => chainable(null)); // email no duplicado
-      (updated as any).save = jest.fn().mockResolvedValue(updated);
 
       const res = await request(app.getHttpServer())
         .patch(`/users/${mockUsers.estudiante._id}`)
@@ -287,7 +294,12 @@ describe('Users E2E', () => {
     });
 
     it('404 rol especificado en update no existe', async () => {
-      const current = { ...mockUsers.estudiante, email: 'old@test.com' };
+      const current = {
+        ...mockUsers.estudiante,
+        email: 'old@test.com',
+        save: jest.fn(),
+        toObject: () => ({ ...mockUsers.estudiante, email: 'old@test.com' }),
+      } as any;
       mockUserModel.findById.mockImplementationOnce(() => chainable(current));
       mockUserModel.findOne.mockImplementationOnce(() => chainable(null));
       mockRoleModel.findById.mockImplementationOnce(() => chainable(null));

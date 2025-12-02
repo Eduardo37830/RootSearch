@@ -134,7 +134,7 @@ describe('Roles E2E', () => {
       const response = await request(app.getHttpServer())
         .post('/roles')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ name: 'gestor', permissions: [] })
+        .send({ name: 'gestor', description: 'Rol gestor', permissions: [] })
         .expect(201);
 
       expect(response.body).toHaveProperty('_id');
@@ -147,7 +147,7 @@ describe('Roles E2E', () => {
       const res = await request(app.getHttpServer())
         .post('/roles')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ name: mockRoles.custom.name, permissions: [] })
+        .send({ name: mockRoles.custom.name, description: 'Dup', permissions: [] })
         .expect(409);
 
       expect(res.body).toHaveProperty('message');
@@ -160,7 +160,7 @@ describe('Roles E2E', () => {
       const res = await request(app.getHttpServer())
         .post('/roles')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ name: 'gestor', permissions: ['607f1f77bcf86cd799439041', '607f1f77bcf86cd799439042'] })
+        .send({ name: 'gestor', description: 'Rol gestor', permissions: ['607f1f77bcf86cd799439041', '607f1f77bcf86cd799439042'] })
         .expect(404);
 
       expect(res.body).toHaveProperty('message');
