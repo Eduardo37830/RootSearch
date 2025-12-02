@@ -3,15 +3,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { AppModule } from '../../../src/app.module';
 
-// Tipos base para overrides
 type ModelOverride = {
-  token: string | symbol;
+  // Acepta tokens de provider: strings, symbols o clases/InjectionTokens
+  token: any;
   useValue: any;
 };
 
 export interface CreateTestAppOptions {
-  overrides?: ModelOverride[]; // Ej: [{ token: getModelToken(User.name), useValue: mockUserModel }]
-  globalPipes?: boolean;       // Aplica ValidationPipe si true
+  overrides?: ModelOverride[];
+  globalPipes?: boolean;
 }
 
 // Utilidad: crea la app Nest para E2E con overrides y pipes comunes
