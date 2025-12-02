@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getCourseById } from '../../../services/courses';
+import { getCourseById, enrollStudentsToCourse, unenrollStudentsFromCourse } from '../../../services/courses';
 import { getUserProfile } from '../../../services/users';
 import { uploadAudio } from '../../../services/audio';
 import { getGeneratedContentByCourse } from '../../../services/generated-content';
 import { downloadMaterial, exportMaterialToPdf } from '../../../services/materials';
+import { getAllStudents } from '../../../services/students';
 import SideBar from '@/components/SideBar';
 import Toast from '@/components/Toast';
 import UploadMaterialModal from '@/components/upload_material';
-import { FaBook, FaUser, FaCalendar, FaFileAlt, FaArrowLeft, FaDownload, FaFilePdf, FaUpload } from 'react-icons/fa';
+import { FaBook, FaUser, FaCalendar, FaFileAlt, FaArrowLeft, FaDownload, FaFilePdf, FaUpload, FaUserPlus, FaUserMinus, FaTimes } from 'react-icons/fa';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 type Course = {
@@ -62,6 +63,14 @@ export default function CourseViewPage() {
   const [showExportMaterialModal, setShowExportMaterialModal] = useState(false);
   const [materialsForCourse, setMaterialsForCourse] = useState<any[]>([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [showAddStudentsModal, setShowAddStudentsModal] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [addingStudents, setAddingStudents] = useState(false);
+  const [showRemoveStudentModal, setShowRemoveStudentModal] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState<{ _id: string; name: string; email: string } | null>(null);
+  const [removingStudent, setRemovingStudent] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -253,6 +262,92 @@ export default function CourseViewPage() {
     }
   };
 
+  const handleOpenAddStudentsModal = async () => {
+    try {
+      setLoadingStudents(true);
+      setShowAddStudentsModal(true);
+      const students = await getAllStudents();
+      
+      // Filtrar estudiantes que ya están inscritos en el curso
+      const enrolledStudentIds = course?.students.map(s => s._id) || [];
+      const notEnrolled = students.filter(student => !enrolledStudentIds.includes(student._id));
+      
+      setAvailableStudents(notEnrolled);
+    } catch (error) {
+      console.error('Error al cargar estudiantes:', error);
+      setToast({ message: 'Error al cargar la lista de estudiantes', type: 'error' });
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const handleToggleStudent = (studentId: string) => {
+    setSelectedStudents(prev => {
+      if (prev.includes(studentId)) {
+        return prev.filter(id => id !== studentId);
+      } else {
+        return [...prev, studentId];
+      }
+    });
+  };
+
+  const handleAddStudents = async () => {
+    if (!courseId || selectedStudents.length === 0) {
+      setToast({ message: 'Por favor selecciona al menos un estudiante', type: 'error' });
+      return;
+    }
+
+    try {
+      setAddingStudents(true);
+      await enrollStudentsToCourse(courseId, selectedStudents);
+      
+      setToast({ message: `${selectedStudents.length} estudiante(s) agregado(s) exitosamente`, type: 'success' });
+      
+      // Recargar el curso para mostrar los nuevos estudiantes
+      const updatedCourse = await getCourseById(courseId);
+      setCourse(updatedCourse);
+      
+      // Cerrar modal y limpiar selección
+      setShowAddStudentsModal(false);
+      setSelectedStudents([]);
+      setAvailableStudents([]);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al agregar estudiantes: ${errorMessage}`, type: 'error' });
+    } finally {
+      setAddingStudents(false);
+    }
+  };
+
+  const handleOpenRemoveStudentModal = (student: { _id: string; name: string; email: string }) => {
+    setStudentToRemove(student);
+    setShowRemoveStudentModal(true);
+  };
+
+  const handleRemoveStudent = async () => {
+    if (!courseId || !studentToRemove) return;
+
+    try {
+      setRemovingStudent(true);
+      await unenrollStudentsFromCourse(courseId, [studentToRemove._id]);
+      
+      setToast({ message: `Estudiante ${studentToRemove.name} eliminado del curso`, type: 'success' });
+      
+      // Recargar el curso para actualizar la lista
+      const updatedCourse = await getCourseById(courseId);
+      setCourse(updatedCourse);
+      
+      // Cerrar modal
+      setShowRemoveStudentModal(false);
+      setStudentToRemove(null);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al eliminar estudiante: ${errorMessage}`, type: 'error' });
+    } finally {
+      setRemovingStudent(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
@@ -441,13 +536,26 @@ export default function CourseViewPage() {
 
         {/* Lista de Estudiantes */}
         <div className="bg-[#101434] p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <FaUser className="text-[#6356E5]" />
-            Estudiantes Inscritos
-            <span className="ml-2 bg-[#6356E5] text-white text-sm px-3 py-1 rounded-full">
-              {course.students.length}
-            </span>
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <FaUser className="text-[#6356E5]" />
+              Estudiantes Inscritos
+              <span className="ml-2 bg-[#6356E5] text-white text-sm px-3 py-1 rounded-full">
+                {course.students.length}
+              </span>
+            </h2>
+            
+            {/* Botón para agregar estudiantes (solo docentes y administradores) */}
+            {(user?.role.toLowerCase() === "docente" || user?.role.toLowerCase() === "administrador") && (
+              <button
+                onClick={handleOpenAddStudentsModal}
+                className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2"
+              >
+                <FaUserPlus />
+                <span>Agregar Estudiantes</span>
+              </button>
+            )}
+          </div>
           
           {course.students.length === 0 ? (
             <p className="text-zinc-400 text-center py-6">
@@ -458,16 +566,25 @@ export default function CourseViewPage() {
               {course.students.map((student) => (
                 <div
                   key={student._id}
-                  className="bg-[#1a1a2e] p-4 rounded-lg hover:bg-[#2a2a3a] transition"
+                  className="bg-[#1a1a2e] p-4 rounded-lg hover:bg-[#2a2a3a] transition group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-[#6356E5] text-white rounded-full flex items-center justify-center font-semibold">
                       {student.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-white font-medium">{student.name}</p>
                       <p className="text-zinc-400 text-sm">{student.email}</p>
                     </div>
+                    {(user?.role.toLowerCase() === "docente" || user?.role.toLowerCase() === "administrador") && (
+                      <button
+                        onClick={() => handleOpenRemoveStudentModal(student)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg cursor-pointer"
+                        title="Eliminar estudiante del curso"
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -889,6 +1006,201 @@ export default function CourseViewPage() {
             >
               Cancelar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Eliminación de Estudiante */}
+      {showRemoveStudentModal && studentToRemove && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <FaUserMinus className="text-red-500" />
+                Eliminar Estudiante
+              </h2>
+              <button
+                onClick={() => {
+                  setShowRemoveStudentModal(false);
+                  setStudentToRemove(null);
+                }}
+                disabled={removingStudent}
+                className="text-white/60 hover:text-white text-2xl transition cursor-pointer disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-white/80 mb-4">
+                ¿Estás seguro de que deseas eliminar a este estudiante del curso?
+              </p>
+              <div className="bg-[#1a1a2e] p-4 rounded-lg border border-red-500/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-[#6356E5] text-white rounded-full flex items-center justify-center font-semibold text-lg">
+                    {studentToRemove.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{studentToRemove.name}</p>
+                    <p className="text-white/60 text-sm">{studentToRemove.email}</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-yellow-400 text-sm mt-4">
+                ⚠️ Esta acción eliminará al estudiante del curso pero no eliminará su cuenta.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleRemoveStudent}
+                disabled={removingStudent}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer flex items-center justify-center gap-2"
+              >
+                {removingStudent ? (
+                  <>
+                    <AiOutlineLoading3Quarters className="animate-spin" />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaUserMinus />
+                    <span>Eliminar</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowRemoveStudentModal(false);
+                  setStudentToRemove(null);
+                }}
+                disabled={removingStudent}
+                className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Agregar Estudiantes */}
+      {showAddStudentsModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <FaUserPlus className="text-[#6356E5]" />
+                Agregar Estudiantes al Curso
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddStudentsModal(false);
+                  setSelectedStudents([]);
+                  setAvailableStudents([]);
+                }}
+                className="text-white/60 hover:text-white text-2xl transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingStudents ? (
+              <div className="flex justify-center py-8">
+                <AiOutlineLoading3Quarters className="animate-spin text-4xl text-[#6356E5]" />
+              </div>
+            ) : availableStudents.length > 0 ? (
+              <>
+                <div className="mb-4 p-3 bg-[#1a1a2e] rounded-lg">
+                  <p className="text-white/80 text-sm">
+                    Selecciona los estudiantes que deseas agregar al curso.
+                    <span className="ml-2 text-[#6356E5] font-semibold">
+                      {selectedStudents.length} seleccionado(s)
+                    </span>
+                  </p>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  {availableStudents.map((student) => (
+                    <div
+                      key={student._id}
+                      onClick={() => handleToggleStudent(student._id)}
+                      className={`p-4 rounded-lg border-2 transition cursor-pointer ${
+                        selectedStudents.includes(student._id)
+                          ? 'border-[#6356E5] bg-[#6356E5]/10'
+                          : 'border-[#333] bg-[#1a1a2e] hover:border-[#6356E5]/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudents.includes(student._id)}
+                          onChange={() => {}}
+                          className="w-5 h-5 cursor-pointer accent-[#6356E5]"
+                        />
+                        <div className="w-10 h-10 bg-[#6356E5] text-white rounded-full flex items-center justify-center font-semibold">
+                          {student.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{student.name}</p>
+                          <p className="text-white/60 text-sm">{student.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleAddStudents}
+                    disabled={addingStudents || selectedStudents.length === 0}
+                    className="flex-1 bg-[#6356E5] hover:bg-[#4f48c7] disabled:bg-zinc-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {addingStudents ? (
+                      <>
+                        <AiOutlineLoading3Quarters className="animate-spin" />
+                        <span>Agregando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaUserPlus />
+                        <span>Agregar {selectedStudents.length > 0 ? `(${selectedStudents.length})` : ''}</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddStudentsModal(false);
+                      setSelectedStudents([]);
+                      setAvailableStudents([]);
+                    }}
+                    disabled={addingStudents}
+                    className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition font-semibold cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-zinc-400 mb-4">
+                  No hay estudiantes disponibles para agregar a este curso.
+                </p>
+                <p className="text-zinc-500 text-sm">
+                  Todos los estudiantes ya están inscritos o no hay estudiantes registrados en el sistema.
+                </p>
+                <button
+                  onClick={() => {
+                    setShowAddStudentsModal(false);
+                    setSelectedStudents([]);
+                    setAvailableStudents([]);
+                  }}
+                  className="mt-4 bg-zinc-700 hover:bg-zinc-600 text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

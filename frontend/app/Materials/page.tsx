@@ -54,7 +54,7 @@ export default function MaterialsPage() {
     setLoading(true);
     try {
       const data = await getMaterialsByCourse(courseId);
-      setMaterials(data);
+      setMaterials(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
       setToast({ message: "Error al cargar materiales", type: "error" });
@@ -74,9 +74,10 @@ export default function MaterialsPage() {
       await uploadAudioAndGenerate(selectedCourse, file);
       setToast({ message: "Material generado exitosamente. Revisa el borrador.", type: "success" });
       fetchMaterials(selectedCourse);
-    } catch (error) {
-      console.error(error);
-      setToast({ message: "Error al generar material", type: "error" });
+    } catch (error: any) {
+      console.error('Error uploading audio:', error);
+      const errorMessage = error?.message || "Error al generar material";
+      setToast({ message: errorMessage, type: "error" });
     } finally {
       setUploading(false);
       // Reset input

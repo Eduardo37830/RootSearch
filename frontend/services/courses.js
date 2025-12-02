@@ -127,3 +127,43 @@ export async function getCourseById(courseId) {
 
   return response.json();
 }
+
+export async function enrollStudentsToCourse(courseId, studentIds) {
+  const token = localStorage.getItem('access_token');
+
+  const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseId)}/enroll`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ studentIds }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'Error al agregar estudiantes al curso');
+  }
+
+  return response.json();
+}
+
+export async function unenrollStudentsFromCourse(courseId, studentIds) {
+  const token = localStorage.getItem('access_token');
+
+  const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseId)}/unenroll`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ studentIds }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'Error al eliminar estudiantes del curso');
+  }
+
+  return response.json();
+}

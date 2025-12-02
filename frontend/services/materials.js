@@ -280,19 +280,49 @@ export const getMaterialById = async (id) => {
  */
 export const uploadAudioAndGenerate = async (courseId, file) => {
   const token = localStorage.getItem('access_token');
+  
+  if (!token) {
+    throw new Error('No se encontró un token de acceso. Por favor, inicia sesión.');
+  }
+
   const formData = new FormData();
   formData.append('courseId', courseId);
   formData.append('file', file);
 
-  const response = await fetch(`${API_URL}/materials/upload-audio`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-  if (!response.ok) throw new Error('Error uploading audio');
-  return response.json();
+  try {
+    const response = await fetch(`${API_URL}/materials/upload-audio`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (response.status === 503) {
+      throw new Error('El servidor no está disponible. Por favor, verifica que el backend esté ejecutándose.');
+    }
+
+    if (response.status === 401) {
+      throw new Error('No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.');
+    }
+
+    if (response.status === 500) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Error interno del servidor: ${errorData.message || 'Error al procesar el audio'}`);
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error al subir audio: ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      throw new Error('No se puede conectar con el servidor. Verifica que el backend esté ejecutándose en http://localhost:3001');
+    }
+    throw error;
+  }
 };
 
 /**
