@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { getUserProfile } from "../../services/users";
-import { getStudentMaterials } from "../../services/students";
+import { getStudentCourseMaterials } from "../../services/materials";
 import SideBar from "@/components/SideBar";
-import { FaBook } from "react-icons/fa";
+import { FaBook, FaExternalLinkAlt } from "react-icons/fa";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 type Material = {
-  _id: string;
+  courseName: string;
+  courseId: string;
+  materialId: string;
   title: string;
   description: string;
-  createdAt: string;
+  type: string;
+  originalName: string;
+  storageRef: string;
 };
 
 export default function HomeWorkPage() {
@@ -36,7 +40,7 @@ export default function HomeWorkPage() {
         
         // Intentar cargar los materiales del estudiante
         try {
-          const studentMaterials = await getStudentMaterials(userData._id);
+          const studentMaterials = await getStudentCourseMaterials(userData._id);
           setMaterials(studentMaterials);
         } catch (materialError) {
           console.log("No se pudieron cargar los materiales:", materialError);
@@ -110,13 +114,27 @@ export default function HomeWorkPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {materials.map((material) => (
                 <div
-                  key={material._id}
-                  className="bg-[#1a1a2e] rounded-lg p-4 border border-[#333] hover:border-[#6356E5] transition cursor-pointer"
+                  key={material.materialId}
+                  className="bg-[#1a1a2e] rounded-lg p-4 border border-[#333] hover:border-[#6356E5] transition"
                 >
-                  <h3 className="text-lg font-semibold mb-2">{material.title}</h3>
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-semibold flex-1">{material.title}</h3>
+                    <span className="text-xs bg-[#6356E5] px-2 py-1 rounded-full ml-2">
+                      {material.type}
+                    </span>
+                  </div>
+                  <p className="text-[#6356E5] text-sm font-medium mb-2">{material.courseName}</p>
                   <p className="text-zinc-400 text-sm mb-3">{material.description}</p>
-                  <div className="text-xs text-zinc-500">
-                    {new Date(material.createdAt).toLocaleDateString()}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">{material.originalName}</span>
+                    <a
+                      href={material.storageRef}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#6356E5] hover:text-[#4f48c7] transition"
+                    >
+                      <FaExternalLinkAlt className="text-sm" />
+                    </a>
                   </div>
                 </div>
               ))}

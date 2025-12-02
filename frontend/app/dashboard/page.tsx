@@ -4,9 +4,9 @@ import React from "react";
 import SideBar from "@/components/SideBar";
 import { getUserProfile } from "@/services/users";
 import { getAllStudents } from "@/services/students";
-import { getCoursesByTeacher, getCourseById, getAllCoursesForAdmin } from "@/services/courses";
+import { getCoursesByTeacher, getCourseById, getAllCoursesForAdmin, getAllCourses } from "@/services/courses";
 import { uploadAudio } from "@/services/audio";
-import { getGeneratedContentByCourse } from "@/services/generated-content";
+import { getGeneratedContentByCourse, publishMaterial, updateMaterial } from "@/services/generated-content";
 import {
   getTeacherCoursesCount,
   getTeacherUniqueStudentsCount,
@@ -50,20 +50,21 @@ export default function Dashboard() {
     resumen: string;
     glosario: any[];
     quiz: any[];
-    checklist: any[];
+    checklist: string[];
     estado: string;
     index: number;
   } | null>(null);
   const [loadingGeneratedContent, setLoadingGeneratedContent] = useState(false);
   const [selectedTab, setSelectedTab] = useState<"resumen" | "glosario" | "quiz" | "checklist">("resumen");
   const [selectedCourseForContent, setSelectedCourseForContent] = useState<{ id: string; name: string } | null>(null);
-  const [metrics, setMetrics] = useState<{
-    coursesCount: number;
-    studentsCount: number;
-  }>({
-    coursesCount: 0,
-    studentsCount: 0,
-  });
+  const [isEditingContent, setIsEditingContent] = useState(false);
+  const [editedContent, setEditedContent] = useState<{
+    resumen: string;
+    glosario: any[];
+    checklist: string[];
+  } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [metrics, setMetrics] = useState<{ coursesCount: number; studentsCount: number }>({ coursesCount: 0, studentsCount: 0 });
 
   useEffect(() => {
     async function fetchData() {
@@ -79,7 +80,7 @@ export default function Dashboard() {
 
         setUser({ id: userData._id, name: userData.name, role });
 
-        // Cargar estudiantes si es necesario
+        // Cargar cursos según el rol
         if (role.toLowerCase() === "docente" || role.toLowerCase() === "administrador") {
           const studentsData = await getAllStudents();
           setStudents(studentsData);
@@ -123,6 +124,23 @@ export default function Dashboard() {
           );
           
           setTeacherCourses(sortedCourses);
+        } else if (role.toLowerCase() === "estudiante") {
+          // Para estudiantes: obtener cursos en los que está inscrito (solo con parámetro student)
+          const courses = await getAllCourses(userData._id, 'student');
+          
+          // Ordenar por fecha de creación (más recientes primero)
+          const sortedCourses = courses.sort((a: any, b: any) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          
+          setTeacherCourses(sortedCourses);
+          
+          // Métricas para estudiantes
+          // Por ahora solo contamos cursos, el conteo de materiales se implementará después
+          setMetrics({
+            coursesCount: courses.length,
+            studentsCount: 0, // Este campo no aplica para estudiantes pero lo dejamos para mantener la estructura
+          });
         }
         
         // Solo cuando TODO esté listo, quitar el loading
@@ -247,6 +265,92 @@ export default function Dashboard() {
     });
     setShowGeneratedContentListModal(false);
     setShowGeneratedContentModal(true);
+    setIsEditingContent(false);
+    setEditedContent(null);
+  };
+
+  const handleValidateMaterial = async () => {
+    if (!selectedGeneratedContent?._id) return;
+    
+    try {
+      setIsSaving(true);
+      await publishMaterial(selectedGeneratedContent._id);
+      
+      // Actualizar el estado local
+      setSelectedGeneratedContent(prev => 
+        prev ? { ...prev, estado: 'PUBLICADO' } : null
+      );
+      
+      setToast({
+        message: 'Material validado y publicado exitosamente',
+        type: 'success',
+      });
+      
+      // Recargar la lista de contenidos
+      const response = await getGeneratedContentByCourse(selectedCourseForContent?.id || '');
+      setGeneratedContentsList(response);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al validar el material: ${errorMessage}`, type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleStartEdit = () => {
+    if (selectedGeneratedContent) {
+      setEditedContent({
+        resumen: selectedGeneratedContent.resumen,
+        glosario: JSON.parse(JSON.stringify(selectedGeneratedContent.glosario)),
+        checklist: JSON.parse(JSON.stringify(selectedGeneratedContent.checklist)),
+      });
+      setIsEditingContent(true);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedGeneratedContent?._id || !editedContent) return;
+    
+    try {
+      setIsSaving(true);
+      const updatedMaterial = await updateMaterial(selectedGeneratedContent._id, {
+        resumen: editedContent.resumen,
+        glosario: editedContent.glosario,
+        checklist: editedContent.checklist,
+      });
+      
+      // Actualizar el estado local
+      setSelectedGeneratedContent(prev => 
+        prev ? {
+          ...prev,
+          resumen: editedContent.resumen,
+          glosario: editedContent.glosario,
+          checklist: editedContent.checklist,
+        } : null
+      );
+      
+      setToast({
+        message: 'Material actualizado exitosamente',
+        type: 'success',
+      });
+      
+      setIsEditingContent(false);
+      setEditedContent(null);
+      
+      // Recargar la lista de contenidos
+      const response = await getGeneratedContentByCourse(selectedCourseForContent?.id || '');
+      setGeneratedContentsList(response);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al guardar los cambios: ${errorMessage}`, type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingContent(false);
+    setEditedContent(null);
   };
 
   if (error) {
@@ -415,17 +519,99 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            <div className="flex flex-col lg:flex-row flex-1 gap-4">
-              <div className="flex-1 bg-[#101434] rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 text-white">Material de Clase</h2>
-                <p className="text-sm text-white/90">Aquí se muestra el material de clase dejado.</p>
+            {/* Vista para estudiantes */}
+            <div className="w-full">
+              <h2 className="text-2xl font-bold text-white mb-4">Mis Cursos</h2>
+              {teacherCourses.length > 0 ? (
+                <div className="bg-[#101434] rounded-lg shadow overflow-x-auto">
+                  <table className="w-full text-sm text-white">
+                    <thead>
+                      <tr className="border-b border-[#2a2a4a] bg-[#0f0f2e]">
+                        <th className="px-6 py-4 text-left font-semibold">Nombre del curso</th>
+                        <th className="px-6 py-4 text-center font-semibold">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teacherCourses.slice(0, 5).map((course) => (
+                        <tr key={course._id} className="border-b border-[#2a2a4a] hover:bg-[#151540] transition">
+                          <td className="px-6 py-4 font-medium">{course.name}</td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex gap-2 justify-center flex-wrap">
+                              <button
+                                onClick={() => handleShowPiaa(course._id, course.name)}
+                                className="bg-[#6356E5] hover:bg-[#4f48c7] text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                              >
+                                Mostrar PIAA
+                              </button>
+                              <button
+                                onClick={() => handleShowGeneratedContent(course._id, course.name)}
+                                disabled={loadingGeneratedContent}
+                                className="bg-[#fd7e14] hover:bg-[#e06c00] disabled:bg-[#999] disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition font-medium text-sm cursor-pointer"
+                              >
+                                {loadingGeneratedContent ? 'Cargando...' : 'Mostrar Contenido Generado'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-[#101434] rounded-lg shadow p-6 text-center text-white/70">
+                  No estás inscrito en ningún curso.
+                </div>
+              )}
+            </div>
+
+            {/* Métricas para estudiantes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Cantidad de Cursos Inscritos */}
+              <div className="bg-[#101434] rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white/70 text-sm font-medium mb-1">
+                      Cursos Inscritos
+                    </p>
+                    <p className="text-4xl font-bold text-[#6356E5]">
+                      {metrics.coursesCount}
+                    </p>
+                  </div>
+                  <div className="bg-[#6356E5] bg-opacity-20 rounded-full p-4">
+                    <img
+                      src="/assets/iconos/cursos.png"
+                      alt="Courses"
+                      className="w-10 h-10"
+                    />
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm mt-3">
+                  Total de cursos en los que estás matriculado
+                </p>
               </div>
-              <div
-                className={`w-full lg:w-1/3 bg-[#35448e] rounded-lg shadow p-6 transition-all duration-300 ${expanded ? 'lg:w-full' : ''}`}
-                onClick={() => setExpanded(!expanded)}
-              >
-                <h2 className="text-lg font-semibold mb-4 text-white">Cursos</h2>
-                <p className="text-sm text-white/90">
+
+              {/* Cantidad de Materiales (placeholder por ahora) */}
+              <div className="bg-[#101434] rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white/70 text-sm font-medium mb-1">
+                      Materiales Disponibles
+                    </p>
+                    <p className="text-4xl font-bold text-[#7a6eff]">
+                      {/* Por implementar: conteo de materiales */}
+                      0
+                    </p>
+                  </div>
+                  <div className="bg-[#7a6eff] bg-opacity-20 rounded-full p-4">
+                    <img
+                      src="/assets/iconos/report.png"
+                      alt="Materials"
+                      className="w-10 h-10"
+                    />
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm mt-3">
+                  Materiales de estudio generados en tus cursos
                 </p>
               </div>
             </div>
@@ -625,24 +811,85 @@ export default function Dashboard() {
             {/* Content */}
             <div className="p-6">
               {selectedTab === "resumen" && (
-                <div className="text-white whitespace-pre-wrap break-words bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
-                  {selectedGeneratedContent.resumen}
+                <div>
+                  {isEditingContent && editedContent ? (
+                    <textarea
+                      value={editedContent.resumen}
+                      onChange={(e) => setEditedContent({ ...editedContent, resumen: e.target.value })}
+                      className="w-full h-48 bg-[#0a0a1f] text-white rounded px-4 py-3 border border-[#6356E5] focus:outline-none resize-none"
+                      placeholder="Editar resumen..."
+                    />
+                  ) : (
+                    <div className="text-white whitespace-pre-wrap break-words bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
+                      {selectedGeneratedContent?.resumen}
+                    </div>
+                  )}
                 </div>
               )}
               
               {selectedTab === "glosario" && (
                 <div>
-                  {selectedGeneratedContent.glosario.length > 0 ? (
+                  {isEditingContent && editedContent ? (
                     <div className="space-y-3">
-                      {selectedGeneratedContent.glosario.map((item: any, index: number) => (
+                      {editedContent.glosario.map((item: any, index: number) => (
                         <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
-                          <p className="text-white font-semibold">{item.term || item.termino || `Término ${index + 1}`}</p>
-                          <p className="text-white/80 text-sm mt-1">{item.definition || item.definicion || item.description || "Sin definición"}</p>
+                          <input
+                            type="text"
+                            value={item.term || item.termino || ''}
+                            onChange={(e) => {
+                              const updatedGlosario = [...editedContent.glosario];
+                              updatedGlosario[index] = { ...item, term: e.target.value };
+                              setEditedContent({ ...editedContent, glosario: updatedGlosario });
+                            }}
+                            className="w-full bg-[#151540] text-white font-semibold rounded px-3 py-2 border border-[#6356E5] focus:outline-none mb-2"
+                            placeholder="Término"
+                          />
+                          <textarea
+                            value={item.definition || item.definicion || ''}
+                            onChange={(e) => {
+                              const updatedGlosario = [...editedContent.glosario];
+                              updatedGlosario[index] = { ...item, definition: e.target.value };
+                              setEditedContent({ ...editedContent, glosario: updatedGlosario });
+                            }}
+                            className="w-full bg-[#151540] text-white/80 text-sm rounded px-3 py-2 border border-[#6356E5] focus:outline-none resize-none h-20"
+                            placeholder="Definición"
+                          />
+                          <button
+                            onClick={() => {
+                              const updatedGlosario = editedContent.glosario.filter((_, i) => i !== index);
+                              setEditedContent({ ...editedContent, glosario: updatedGlosario });
+                            }}
+                            className="mt-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm transition"
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       ))}
+                      <button
+                        onClick={() => {
+                          const newItem = { term: '', definition: '' };
+                          setEditedContent({ ...editedContent, glosario: [...editedContent.glosario, newItem] });
+                        }}
+                        className="w-full bg-[#6356E5] hover:bg-[#7a6eff] text-white px-4 py-2 rounded-lg transition font-medium"
+                      >
+                        + Agregar Término
+                      </button>
                     </div>
                   ) : (
-                    <div className="text-white/60 text-center py-8">No hay elementos en el glosario</div>
+                    <div>
+                      {selectedGeneratedContent?.glosario.length > 0 ? (
+                        <div className="space-y-3">
+                          {selectedGeneratedContent.glosario.map((item: any, index: number) => (
+                            <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
+                              <p className="text-white font-semibold">{item.term || item.termino || `Término ${index + 1}`}</p>
+                              <p className="text-white/80 text-sm mt-1">{item.definition || item.definicion || item.description || "Sin definición"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-white/60 text-center py-8">No hay elementos en el glosario</div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -677,39 +924,112 @@ export default function Dashboard() {
               
               {selectedTab === "checklist" && (
                 <div>
-                  {selectedGeneratedContent.checklist.length > 0 ? (
+                  {isEditingContent && editedContent ? (
                     <div className="space-y-2">
-                      {selectedGeneratedContent.checklist.map((item: any, index: number) => (
+                      {editedContent.checklist.map((item: string, index: number) => (
                         <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a] flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            disabled
-                            defaultChecked={item.completado || item.completed || false}
-                            className="mt-1 cursor-not-allowed"
-                          />
-                          <div>
-                            <p className="text-white">{item.tarea || item.item || `Tarea ${index + 1}`}</p>
-                            {item.descripcion && (
-                              <p className="text-white/60 text-sm">{item.descripcion}</p>
-                            )}
+                          <div className="flex-1 w-full">
+                            <textarea
+                              value={item}
+                              onChange={(e) => {
+                                const updatedChecklist = [...editedContent.checklist];
+                                updatedChecklist[index] = e.target.value;
+                                setEditedContent({ ...editedContent, checklist: updatedChecklist });
+                              }}
+                              className="w-full bg-[#151540] text-white rounded px-3 py-2 border border-[#6356E5] focus:outline-none resize-none h-20"
+                              placeholder="Punto de checklist"
+                            />
+                            <button
+                              onClick={() => {
+                                const updatedChecklist = editedContent.checklist.filter((_, i) => i !== index);
+                                setEditedContent({ ...editedContent, checklist: updatedChecklist });
+                              }}
+                              className="mt-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm transition"
+                            >
+                              Eliminar
+                            </button>
                           </div>
                         </div>
                       ))}
+                      <button
+                        onClick={() => {
+                          setEditedContent({ ...editedContent, checklist: [...editedContent.checklist, ''] });
+                        }}
+                        className="w-full bg-[#6356E5] hover:bg-[#7a6eff] text-white px-4 py-2 rounded-lg transition font-medium"
+                      >
+                        + Agregar Punto
+                      </button>
                     </div>
                   ) : (
-                    <div className="text-white/60 text-center py-8">No hay elementos en el checklist</div>
+                    <div>
+                      {selectedGeneratedContent?.checklist.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedGeneratedContent.checklist.map((item: string, index: number) => (
+                            <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a] flex items-start gap-3">
+                              <div className="flex-1">
+                                <p className="text-white whitespace-pre-wrap break-words">{item}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-white/60 text-center py-8">No hay elementos en el checklist</div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="bg-[#0f0f2e] border-t border-[#2a2a4a] px-6 py-4 flex justify-end gap-2">
+            <div className="bg-[#0f0f2e] border-t border-[#2a2a4a] px-6 py-4 flex justify-between gap-2">
+              <div className="flex gap-2">
+                {isEditingContent ? (
+                  <>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={isSaving}
+                      className="bg-[#28a745] hover:bg-[#218838] disabled:bg-[#999] text-white px-4 py-2 rounded-lg transition font-medium"
+                    >
+                      {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={isSaving}
+                      className="bg-[#6c757d] hover:bg-[#5a6268] disabled:bg-[#999] text-white px-4 py-2 rounded-lg transition font-medium"
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {selectedGeneratedContent?.estado === 'PENDIENTE_REVISION' && (
+                      <button
+                        onClick={handleValidateMaterial}
+                        disabled={isSaving}
+                        className="bg-[#17a2b8] hover:bg-[#138496] disabled:bg-[#999] text-white px-4 py-2 rounded-lg transition font-medium"
+                      >
+                        {isSaving ? 'Validando...' : 'Validar'}
+                      </button>
+                    )}
+                    <button
+                      onClick={handleStartEdit}
+                      disabled={isSaving}
+                      className="bg-[#6356E5] hover:bg-[#4f48c7] disabled:bg-[#999] text-white px-4 py-2 rounded-lg transition font-medium"
+                    >
+                      Editar
+                    </button>
+                  </>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setShowGeneratedContentModal(false);
                   setSelectedGeneratedContent(null);
+                  setIsEditingContent(false);
+                  setEditedContent(null);
                 }}
-                className="bg-[#35448e] hover:bg-[#2a3670] text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer"
+                disabled={isSaving}
+                className="bg-[#35448e] hover:bg-[#2a3670] disabled:bg-[#999] text-white px-4 py-2 rounded-lg transition font-medium"
               >
                 Cerrar
               </button>

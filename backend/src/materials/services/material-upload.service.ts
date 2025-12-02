@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CourseMaterial } from '../schemas/course-material.schema';
+import { MaterialListItemDto } from '../dto/material-list-item.dto';
 import { IMaterialUploadStrategy, MATERIAL_UPLOAD_STRATEGIES } from '../interfaces/material-upload-strategy.interface';
 import { FILE_STORAGE, IFileStorage } from '../storage/file-storage.interface';
 import { Response } from 'express';
@@ -103,5 +104,30 @@ export class MaterialUploadService {
     const safeName = filename || material.originalName || material.filename || 'file';
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
     stream.pipe(res);
+  }
+
+  async listByCourse(courseId: string): Promise<MaterialListItemDto[]> {
+    const items = await this.materialModel
+      .find({ courseId })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    return items.map((m: any) => ({
+      _id: String(m._id),
+      courseId: String(m.courseId),
+      uploaderId: String(m.uploaderId),
+      type: m.type,
+      filename: m.filename,
+      originalName: m.originalName,
+      mime: m.mime,
+      size: m.size,
+      storageProvider: m.storageProvider,
+      storageRef: this.storage.getAccessUrl(m.storageRef),
+      title: m.title,
+      description: m.description,
+      status: m.status,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+    }));
   }
 }

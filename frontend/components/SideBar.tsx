@@ -104,19 +104,7 @@ export default function SideBar({ user }: SideBarProps) {
                 />
                 {!isMinimized && "Estudiantes"}
               </a>
-            ) : (
-              <a
-                href="/homework"
-                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
-              >
-                <img
-                  src="/assets/iconos/homework.png"
-                  alt="Homeworks Icon"
-                  className="w-6 h-6 mb-2"
-                />
-                {!isMinimized && "HomeWorks"}
-              </a>
-            )}
+            ) : null}
             <a
               href={user?.role === "profesor" || user?.role === "administrador" ? "/courses/list" : "/courses/list"}
               className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
@@ -143,7 +131,7 @@ export default function SideBar({ user }: SideBarProps) {
             </h2>
             {user?.role === "estudiante" ? (
               <a
-                href="/communicate"
+                href="/comunication"
                 className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition mb-2"
               >
                 <img
@@ -166,17 +154,31 @@ export default function SideBar({ user }: SideBarProps) {
                 {!isMinimized && "Métricas"}
               </a>
             )}
-            <a
-              href="/Materials"
-              className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
-            >
-              <img
-                src="/assets/iconos/report.png"
-                alt="Material Icon"
-                className="w-6 h-6 mb-2"
-              />
-              {!isMinimized && "Materials LLM"}
-            </a>
+            {user?.role === "estudiante" ? (
+              <a
+                href="/homework"
+                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              >
+                <img
+                  src="/assets/iconos/homework.png"
+                  alt="Homeworks Icon"
+                  className="w-6 h-6 mb-2"
+                />
+                {!isMinimized && "Homeworks"}
+              </a>
+            ) : (
+              <a
+                href="/Materials"
+                className="flex items-center gap-2 py-1 px-3 rounded-lg hover:bg-[#7165E9] transition"
+              >
+                <img
+                  src="/assets/iconos/report.png"
+                  alt="Material Icon"
+                  className="w-6 h-6 mb-2"
+                />
+                {!isMinimized && "Materials LLM"}
+              </a>
+            )}
           </div>
 
           <div className={`border-t border-white ${isMinimized ? "my-4" : "my-1"}`}></div>

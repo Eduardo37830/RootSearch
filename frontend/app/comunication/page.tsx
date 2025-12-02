@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getUserProfile, getAllUsers } from "../../services/users";
+import { getUserProfile, getMyTeachers } from "../../services/users";
 import SideBar from "@/components/SideBar";
 import { FaChalkboardTeacher } from "react-icons/fa";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 type Teacher = {
-  _id?: string;
-  name: string;
-  email: string;
-  roles?: Array<{ name: string }>;
+  courseName: string;
+  teacherName: string;
+  teacherEmail: string;
 };
 
 export default function ComunicationPage() {
@@ -48,12 +47,7 @@ export default function ComunicationPage() {
       if (currentUser) {
         setLoading(true);
         try {
-          const allUsers = await getAllUsers();
-          // Filtrar solo docentes
-          const teachersList = allUsers.filter((user) => {
-            const userRole = user.roles?.[0]?.name?.toLowerCase() || "";
-            return userRole === "docente";
-          });
+          const teachersList = await getMyTeachers();
           setTeachers(teachersList);
           setFilteredTeachers(teachersList);
         } catch (error) {
@@ -67,11 +61,12 @@ export default function ComunicationPage() {
     fetchTeachers();
   }, [currentUser]);
 
-  // Filtrar docentes por búsqueda de nombre
+  // Filtrar docentes por búsqueda de nombre o curso
   useEffect(() => {
     if (searchTerm) {
       const filtered = teachers.filter((teacher) =>
-        teacher.name.toLowerCase().includes(searchTerm.toLowerCase())
+        teacher.teacherName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        teacher.courseName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredTeachers(filtered);
     } else {
@@ -122,12 +117,12 @@ export default function ComunicationPage() {
         <div className="mb-4 sm:mb-6 bg-[#101434] rounded-lg p-4 sm:p-6 shadow-lg">
           <div className="max-w-md">
             <label htmlFor="search" className="block text-xs sm:text-sm font-medium mb-2 text-white/70">
-              Buscar docente por nombre
+              Buscar por nombre de docente o curso
             </label>
             <input
               id="search"
               type="text"
-              placeholder="Escribe un nombre..."
+              placeholder="Escribe un nombre o curso..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 sm:px-4 bg-[#1a1a2e] border border-[#333] rounded-lg text-sm sm:text-base text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#6356E5] transition"
@@ -147,36 +142,47 @@ export default function ComunicationPage() {
 
         {/* Tabla de docentes */}
         <div className="w-full overflow-x-auto rounded-lg shadow-lg bg-[#101434]">
-          <table className="min-w-[500px] w-full text-sm text-white">
+          <table className="min-w-[600px] w-full text-sm text-white">
             <thead className="bg-[#1a1a2e]">
               <tr>
-                <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Nombre</th>
+                <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Curso</th>
+                <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Nombre Docente</th>
                 <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Correo Electrónico</th>
               </tr>
             </thead>
             <tbody>
               {filteredTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="py-6 px-4 text-center text-zinc-400">
+                  <td colSpan={3} className="py-6 px-4 text-center text-zinc-400">
                     {searchTerm
                       ? "No se encontraron docentes con los filtros aplicados."
-                      : "No hay docentes registrados."}
+                      : "No hay docentes asignados."}
                   </td>
                 </tr>
               ) : (
                 filteredTeachers.map((teacher, idx) => (
                   <tr
-                    key={teacher._id || idx}
+                    key={idx}
                     className="border-b border-[#333] hover:bg-[#2a2a3a] transition"
                   >
-                    <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base flex items-center gap-2 sm:gap-3">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#28a745] text-white rounded-full flex items-center justify-center text-xs sm:text-base">
-                        {teacher.name.charAt(0).toUpperCase()}
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#6356E5] text-white rounded-full flex items-center justify-center text-xs sm:text-base">
+                          {teacher.courseName?.charAt(0).toUpperCase() || 'C'}
+                        </div>
+                        <span className="truncate max-w-[150px] sm:max-w-[200px] md:max-w-none">{teacher.courseName}</span>
                       </div>
-                      <span className="truncate max-w-[150px] sm:max-w-[200px] md:max-w-none">{teacher.name}</span>
                     </td>
                     <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">
-                      <span className="truncate max-w-[150px] sm:max-w-none inline-block">{teacher.email}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#28a745] text-white rounded-full flex items-center justify-center text-xs sm:text-base">
+                          {teacher.teacherName?.charAt(0).toUpperCase() || 'D'}
+                        </div>
+                        <span className="truncate max-w-[150px] sm:max-w-[200px] md:max-w-none">{teacher.teacherName}</span>
+                      </div>
+                    </td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">
+                      <span className="truncate max-w-[150px] sm:max-w-none inline-block">{teacher.teacherEmail}</span>
                     </td>
                   </tr>
                 ))

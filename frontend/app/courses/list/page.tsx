@@ -74,8 +74,14 @@ export default function CoursesListPage() {
         // Si es administrador, obtener todos los cursos
         if (user.role.toLowerCase() === "administrador") {
           data = await getAllCoursesForAdmin();
+        } else if (user.role.toLowerCase() === "docente") {
+          // Para docentes, filtrar solo por teacher
+          data = await getAllCourses(user.id, 'teacher');
+        } else if (user.role.toLowerCase() === "estudiante") {
+          // Para estudiantes, filtrar solo por student
+          data = await getAllCourses(user.id, 'student');
         } else {
-          // Para docentes y estudiantes, usar la ruta normal con filtro de usuario
+          // Por defecto, usar ambos filtros
           data = await getAllCourses(user.id);
         }
         
@@ -393,161 +399,245 @@ export default function CoursesListPage() {
           </div>
         )}
 
-        {/* Modal: Lista de contenido generado */}
+        {/* Modal Lista de Contenidos Generados */}
         {showGeneratedContentListModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4 text-white">
-                Contenido Generado - {selectedCourseForContent?.name || ''}
-              </h2>
-              {loadingGeneratedContent ? (
-                <div className="flex justify-center py-6">
-                  <AiOutlineLoading3Quarters className="animate-spin text-3xl text-[#6356E5]" />
-                </div>
-              ) : generatedContentsList && generatedContentsList.length > 0 ? (
-                <div className="space-y-3">
-                  {generatedContentsList.map((content: any) => (
-                    <div
-                      key={content._id}
-                      onClick={() => handleSelectGeneratedContent(content, generatedContentsList.indexOf(content))}
-                      className="bg-[#1a1a2e] hover:bg-[#2a2a3a] p-4 rounded-lg transition cursor-pointer"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-white font-semibold">{content.tematica}</h3>
-                          <p className="text-zinc-400 text-sm mt-1">{content.tipo_material}</p>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#101434] rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
+              <div className="sticky top-0 bg-[#0f0f2e] border-b border-[#2a2a4a] px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-white">Contenidos Generados - {selectedCourseForContent?.name}</h2>
+                <button
+                  onClick={() => {
+                    setShowGeneratedContentListModal(false);
+                    setGeneratedContentsList([]);
+                  }}
+                  className="text-white/60 hover:text-white text-2xl transition cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6">
+                {generatedContentsList.length > 0 ? (
+                  <div className="space-y-3">
+                    {generatedContentsList.map((content: any, index: number) => (
+                      <div
+                        key={content._id}
+                        onClick={() => handleSelectGeneratedContent(content, index)}
+                        className="bg-[#0a0a1f] rounded-lg px-4 py-4 border border-[#2a2a4a] hover:border-[#6356E5] cursor-pointer transition flex items-center justify-between group"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
+                              #{index + 1}
+                            </span>
+                            <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                              content.estado === 'PUBLICADO'
+                                ? 'bg-[#28a745] text-white'
+                                : content.estado === 'PENDIENTE_REVISION'
+                                ? 'bg-[#ffc107] text-black'
+                                : 'bg-[#6c757d] text-white'
+                            }`}>
+                              {content.estado}
+                            </span>
+                          </div>
+                          <p className="text-white/80 text-sm">
+                            Generado: {new Date(content.createdAt).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                          <div className="flex gap-4 mt-2 text-sm text-white/60">
+                            <span>📝 Resumen: {content.resumen ? '✓' : '✗'}</span>
+                            <span>📚 Glosario: {content.glosario?.length || 0}</span>
+                            <span>❓ Quiz: {content.quiz?.length || 0}</span>
+                            <span>✓ Checklist: {content.checklist?.length || 0}</span>
+                          </div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          content.estado === 'PUBLICADO' 
-                            ? 'bg-green-500/20 text-green-400'
-                            : content.estado === 'PENDIENTE_REVISION'
-                            ? 'bg-yellow-500/20 text-yellow-400'
-                            : 'bg-red-500/20 text-red-400'
-                        }`}>
-                          {content.estado}
-                        </span>
+                        <div className="text-[#6356E5] group-hover:translate-x-1 transition">
+                          →
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-zinc-400 text-center py-6">
-                  No hay contenido generado para este curso.
-                </p>
-              )}
-              <button
-                onClick={() => setShowGeneratedContentListModal(false)}
-                className="mt-6 bg-[#6356E5] hover:bg-[#4f48c7] text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer w-full"
-              >
-                Cerrar
-              </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-white/60 text-center py-8">
+                    Cargando contenidos generados...
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-[#0f0f2e] border-t border-[#2a2a4a] px-6 py-4 flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowGeneratedContentListModal(false);
+                    setGeneratedContentsList([]);
+                  }}
+                  className="bg-[#35448e] hover:bg-[#2a3670] text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Modal: Detalle del contenido generado */}
-        {showGeneratedContentModal && selectedGeneratedContent && !showGeneratedContentListModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#101434] p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4 text-white">
-                {selectedGeneratedContent.name}
-              </h2>
-              <div className="mb-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  selectedGeneratedContent.estado === 'PUBLICADO' 
-                    ? 'bg-green-500/20 text-green-400'
-                    : selectedGeneratedContent.estado === 'PENDIENTE_REVISION'
-                    ? 'bg-yellow-500/20 text-yellow-400'
-                    : 'bg-red-500/20 text-red-400'
-                }`}>
-                  {selectedGeneratedContent.estado}
-                </span>
-              </div>
-
-              {/* Pestañas */}
-              <div className="flex gap-2 mb-4 border-b border-[#333]">
-                <button
-                  onClick={() => setSelectedTab('resumen')}
-                  className={`px-4 py-2 font-medium transition cursor-pointer ${
-                    selectedTab === 'resumen'
-                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Resumen
-                </button>
-                <button
-                  onClick={() => setSelectedTab('glosario')}
-                  className={`px-4 py-2 font-medium transition cursor-pointer ${
-                    selectedTab === 'glosario'
-                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Glosario
-                </button>
-                <button
-                  onClick={() => setSelectedTab('quiz')}
-                  className={`px-4 py-2 font-medium transition cursor-pointer ${
-                    selectedTab === 'quiz'
-                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Quiz
-                </button>
-                <button
-                  onClick={() => setSelectedTab('checklist')}
-                  className={`px-4 py-2 font-medium transition cursor-pointer ${
-                    selectedTab === 'checklist'
-                      ? 'text-[#6356E5] border-b-2 border-[#6356E5]'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Checklist
-                </button>
-              </div>
-
-              {/* Contenido de las pestañas */}
-              <div className="text-white">
-                {selectedTab === 'resumen' && (
-                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap">{selectedGeneratedContent.resumen || 'No disponible'}</pre>
-                  </div>
-                )}
-                {selectedTab === 'glosario' && (
-                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedGeneratedContent.glosario, null, 2) || 'No disponible'}</pre>
-                  </div>
-                )}
-                {selectedTab === 'quiz' && (
-                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedGeneratedContent.quiz, null, 2) || 'No disponible'}</pre>
-                  </div>
-                )}
-                {selectedTab === 'checklist' && (
-                  <div className="bg-[#1a1a2e] p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedGeneratedContent.checklist, null, 2) || 'No disponible'}</pre>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setSelectedGeneratedContent(null);
-                    setShowGeneratedContentListModal(true);
-                  }}
-                  className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer"
-                >
-                  Volver
-                </button>
+        {/* Modal Contenido Generado */}
+        {showGeneratedContentModal && selectedGeneratedContent && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#101434] rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+              <div className="sticky top-0 bg-[#0f0f2e] border-b border-[#2a2a4a] px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
+                    #{selectedGeneratedContent.index}
+                  </span>
+                  <h2 className="text-xl font-semibold text-white">{selectedGeneratedContent.name}</h2>
+                </div>
                 <button
                   onClick={() => {
                     setShowGeneratedContentModal(false);
                     setSelectedGeneratedContent(null);
                   }}
-                  className="flex-1 bg-[#6356E5] hover:bg-[#4f48c7] text-white px-6 py-2 rounded-lg transition font-semibold cursor-pointer"
+                  className="text-white/60 hover:text-white text-2xl transition cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {/* Tabs */}
+              <div className="sticky top-0 bg-[#0f0f2e] border-b border-[#2a2a4a] px-6 flex gap-2 overflow-x-auto">
+                <button
+                  onClick={() => setSelectedTab("resumen")}
+                  className={`px-4 py-3 font-medium transition border-b-2 whitespace-nowrap ${
+                    selectedTab === "resumen"
+                      ? "border-[#6356E5] text-[#6356E5]"
+                      : "border-transparent text-white/60 hover:text-white"
+                  }`}
+                >
+                  Resumen
+                </button>
+                <button
+                  onClick={() => setSelectedTab("glosario")}
+                  className={`px-4 py-3 font-medium transition border-b-2 whitespace-nowrap ${
+                    selectedTab === "glosario"
+                      ? "border-[#6356E5] text-[#6356E5]"
+                      : "border-transparent text-white/60 hover:text-white"
+                  }`}
+                >
+                  Glosario ({selectedGeneratedContent.glosario.length})
+                </button>
+                <button
+                  onClick={() => setSelectedTab("quiz")}
+                  className={`px-4 py-3 font-medium transition border-b-2 whitespace-nowrap ${
+                    selectedTab === "quiz"
+                      ? "border-[#6356E5] text-[#6356E5]"
+                      : "border-transparent text-white/60 hover:text-white"
+                  }`}
+                >
+                  Quiz ({selectedGeneratedContent.quiz.length})
+                </button>
+                <button
+                  onClick={() => setSelectedTab("checklist")}
+                  className={`px-4 py-3 font-medium transition border-b-2 whitespace-nowrap ${
+                    selectedTab === "checklist"
+                      ? "border-[#6356E5] text-[#6356E5]"
+                      : "border-transparent text-white/60 hover:text-white"
+                  }`}
+                >
+                  Checklist ({selectedGeneratedContent.checklist.length})
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                {selectedTab === "resumen" && (
+                  <div className="text-white whitespace-pre-wrap break-words bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
+                    {selectedGeneratedContent.resumen}
+                  </div>
+                )}
+                
+                {selectedTab === "glosario" && (
+                  <div>
+                    {selectedGeneratedContent.glosario.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedGeneratedContent.glosario.map((item: any, index: number) => (
+                          <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
+                            <p className="text-white font-semibold">{item.term || item.termino || `Término ${index + 1}`}</p>
+                            <p className="text-white/80 text-sm mt-1">{item.definition || item.definicion || item.description || "Sin definición"}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-white/60 text-center py-8">No hay elementos en el glosario</div>
+                    )}
+                  </div>
+                )}
+                
+                {selectedTab === "quiz" && (
+                  <div>
+                    {selectedGeneratedContent.quiz.length > 0 ? (
+                      <div className="space-y-4">
+                        {selectedGeneratedContent.quiz.map((item: any, index: number) => (
+                          <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a]">
+                            <p className="text-white font-semibold mb-2">{index + 1}. {item.pregunta || item.question || `Pregunta ${index + 1}`}</p>
+                            {item.opciones && Array.isArray(item.opciones) && (
+                              <div className="space-y-2 ml-4">
+                                {item.opciones.map((opcion: string, optIndex: number) => (
+                                  <div key={optIndex} className="text-white/80 text-sm">
+                                    <span className="text-[#6356E5]">{"ABCD"[optIndex]}</span> - {opcion}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {item.respuesta && (
+                              <p className="text-[#28a745] text-sm mt-2">Respuesta: {item.respuesta}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-white/60 text-center py-8">No hay preguntas en el quiz</div>
+                    )}
+                  </div>
+                )}
+                
+                {selectedTab === "checklist" && (
+                  <div>
+                    {selectedGeneratedContent.checklist.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedGeneratedContent.checklist.map((item: any, index: number) => (
+                          <div key={index} className="bg-[#0a0a1f] rounded px-4 py-3 border border-[#2a2a4a] flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              disabled
+                              defaultChecked={item.completado || item.completed || false}
+                              className="mt-1 cursor-not-allowed"
+                            />
+                            <div>
+                              <p className="text-white">{item.tarea || item.item || `Tarea ${index + 1}`}</p>
+                              {item.descripcion && (
+                                <p className="text-white/60 text-sm">{item.descripcion}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-white/60 text-center py-8">No hay elementos en el checklist</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-[#0f0f2e] border-t border-[#2a2a4a] px-6 py-4 flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowGeneratedContentModal(false);
+                    setSelectedGeneratedContent(null);
+                  }}
+                  className="bg-[#35448e] hover:bg-[#2a3670] text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer"
                 >
                   Cerrar
                 </button>
@@ -568,7 +658,7 @@ export default function CoursesListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#101434] via-[#242638] to-[#101434] p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-[#040418] p-4 sm:p-6 md:p-8">
       {/* Logo */}
       <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-8 md:left-8 z-20">
         <button
@@ -628,11 +718,11 @@ export default function CoursesListPage() {
               <>
                 {/* Previous Card Preview */}
                 <div className="hidden lg:block w-48 xl:w-64 transform scale-75 opacity-40 transition-all duration-300">
-                  <div className="bg-gradient-to-br from-[#23233a] to-[#2a2a3a] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
+                  <div className="bg-[#1a1a2e] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
                     <h2 className="text-lg lg:text-xl xl:text-2xl font-bold text-white mb-2 lg:mb-3 xl:mb-4">
                       {courses[getPreviousIndex()]?.name}
                     </h2>
-                    <p className="text-gray-300 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
+                    <p className="text-zinc-400 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
                       {courses[getPreviousIndex()]?.description}
                     </p>
                   </div>
@@ -663,7 +753,7 @@ export default function CoursesListPage() {
                     <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 md:mb-6">
                       {courses[currentIndex]?.name}
                     </h2>
-                    <p className="text-gray-300 text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed">
+                    <p className="text-zinc-300 text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed">
                       {courses[currentIndex]?.description}
                     </p>
                   </div>
@@ -671,11 +761,11 @@ export default function CoursesListPage() {
 
                 {/* Next Card Preview */}
                 <div className="hidden lg:block w-48 xl:w-64 transform scale-75 opacity-40 transition-all duration-300">
-                  <div className="bg-gradient-to-br from-[#23233a] to-[#2a2a3a] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
+                  <div className="bg-[#1a1a2e] rounded-xl lg:rounded-2xl p-4 lg:p-6 xl:p-8 shadow-xl h-48 lg:h-56 xl:h-64">
                     <h2 className="text-lg lg:text-xl xl:text-2xl font-bold text-white mb-2 lg:mb-3 xl:mb-4">
                       {courses[getNextIndex()]?.name}
                     </h2>
-                    <p className="text-gray-300 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
+                    <p className="text-zinc-400 text-xs lg:text-sm line-clamp-3 lg:line-clamp-4">
                       {courses[getNextIndex()]?.description}
                     </p>
                   </div>
@@ -712,8 +802,8 @@ export default function CoursesListPage() {
               }}
               className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 cursor-pointer ${
                 index === currentIndex
-                  ? 'w-6 sm:w-8 bg-blue-400'
-                  : 'w-1.5 sm:w-2 bg-gray-600 hover:bg-gray-500'
+                  ? 'w-6 sm:w-8 bg-[#6356E5]'
+                  : 'w-1.5 sm:w-2 bg-zinc-600 hover:bg-zinc-500'
               }`}
               aria-label={`Go to course ${index + 1}`}
             />

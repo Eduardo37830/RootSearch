@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import SideBar from '@/components/SideBar';
 import { getUserProfile } from '@/services/users';
-import { getAllCourses } from '@/services/courses';
+import { getAllCourses, getAllCoursesForAdmin } from '@/services/courses';
 import { getMaterialsByCourse, uploadAudioAndGenerate, updateMaterial, publishMaterial } from '@/services/materials';
 import { AiOutlineLoading3Quarters, AiOutlineCloudUpload, AiOutlineEdit, AiOutlineEye, AiOutlineCheck } from 'react-icons/ai';
 import { FaBook, FaFileAudio } from 'react-icons/fa';
@@ -30,7 +30,14 @@ export default function MaterialsPage() {
         const role = userData.roles?.[0]?.name || "";
         setUser({ ...userData, role });
 
-        const coursesData = await getAllCourses(userData._id);
+        // Si es administrador, obtener TODOS los cursos del sistema
+        let coursesData;
+        if (role.toLowerCase() === 'administrador') {
+          coursesData = await getAllCoursesForAdmin();
+        } else {
+          coursesData = await getAllCourses(userData._id);
+        }
+        
         setCourses(coursesData);
         
         if (coursesData.length > 0) {
@@ -54,7 +61,7 @@ export default function MaterialsPage() {
     setLoading(true);
     try {
       const data = await getMaterialsByCourse(courseId);
-      setMaterials(data);
+      setMaterials(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
       setToast({ message: "Error al cargar materiales", type: "error" });
@@ -74,9 +81,10 @@ export default function MaterialsPage() {
       await uploadAudioAndGenerate(selectedCourse, file);
       setToast({ message: "Material generado exitosamente. Revisa el borrador.", type: "success" });
       fetchMaterials(selectedCourse);
-    } catch (error) {
-      console.error(error);
-      setToast({ message: "Error al generar material", type: "error" });
+    } catch (error: any) {
+      console.error('Error uploading audio:', error);
+      const errorMessage = error?.message || "Error al generar material";
+      setToast({ message: errorMessage, type: "error" });
     } finally {
       setUploading(false);
       // Reset input

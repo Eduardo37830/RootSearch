@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getUserProfile, getAllUsers } from "../../../services/users";
+import { getUserProfile, getAllUsers, deleteUser } from "../../../services/users";
 import SideBar from "@/components/SideBar";
 import CreateUserModal from "@/components/create_user";
-import { FaUsers, FaUserGraduate, FaChalkboardTeacher, FaPlus } from "react-icons/fa";
+import Toast from "@/components/Toast";
+import { FaUsers, FaUserGraduate, FaChalkboardTeacher, FaPlus, FaTrash } from "react-icons/fa";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 type User = {
@@ -24,6 +25,8 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<"estudiante" | "docente" | "todos">("todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "error" } | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUser() {
@@ -96,6 +99,29 @@ export default function UsersPage() {
       setFilteredUsers(allUsers);
     } catch (error) {
       console.error("Error al recargar usuarios:", error);
+    }
+  };
+
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setDeletingUserId(userToDelete.id);
+    try {
+      await deleteUser(userToDelete.id);
+      setToast({ message: `Usuario "${userToDelete.name}" eliminado exitosamente`, type: "success" });
+      
+      // Recargar la lista de usuarios
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+      setFilteredUsers(allUsers);
+    } catch (error: any) {
+      console.error("Error al eliminar usuario:", error);
+      setToast({ message: error.message || "Error al eliminar el usuario", type: "error" });
+    } finally {
+      setDeletingUserId(null);
+      setUserToDelete(null);
     }
   };
 
@@ -215,12 +241,13 @@ export default function UsersPage() {
                 <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Correo</th>
                 <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Rol</th>
                 <th className="py-2 sm:py-3 px-2 sm:px-4 text-left whitespace-nowrap text-xs sm:text-sm">Fecha de registro</th>
+                <th className="py-2 sm:py-3 px-2 sm:px-4 text-center whitespace-nowrap text-xs sm:text-sm">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 px-4 text-center text-zinc-400">
+                  <td colSpan={5} className="py-6 px-4 text-center text-zinc-400">
                     {searchTerm || roleFilter !== "todos"
                       ? "No se encontraron usuarios con los filtros aplicados."
                       : "No hay usuarios registrados."}
@@ -229,24 +256,37 @@ export default function UsersPage() {
               ) : (
                 filteredUsers.map((user, idx) => {
                   const userRole = user.roles?.[0]?.name?.toLowerCase() || "";
+                  const isDeleting = deletingUserId === user._id;
                   return (
                     <tr
                       key={user._id || idx}
-                      className="border-b border-[#333] cursor-pointer hover:bg-[#2a2a3a] transition"
-                      onClick={() => {
-                        window.location.href = `/users/view?userId=${user._id}`;
-                      }}
+                      className="border-b border-[#333] hover:bg-[#2a2a3a] transition"
                     >
-                      <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base flex items-center gap-2 sm:gap-3">
+                      <td 
+                        className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base flex items-center gap-2 sm:gap-3 cursor-pointer"
+                        onClick={() => {
+                          window.location.href = `/users/view?userId=${user._id}`;
+                        }}
+                      >
                         <div className={`w-6 h-6 sm:w-8 sm:h-8 ${userRole === "docente" ? "bg-[#28a745]" : "bg-[#6356E5]"} text-white rounded-full flex items-center justify-center text-xs sm:text-base`}>
                           {user.name.charAt(0).toUpperCase()}
                         </div>
                         <span className="truncate max-w-[100px] sm:max-w-[150px] md:max-w-none">{user.name}</span>
                       </td>
-                      <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">
+                      <td 
+                        className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base cursor-pointer"
+                        onClick={() => {
+                          window.location.href = `/users/view?userId=${user._id}`;
+                        }}
+                      >
                         <span className="truncate max-w-[120px] sm:max-w-none inline-block">{user.email}</span>
                       </td>
-                      <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">
+                      <td 
+                        className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base cursor-pointer"
+                        onClick={() => {
+                          window.location.href = `/users/view?userId=${user._id}`;
+                        }}
+                      >
                         <span className={`px-2 py-1 sm:px-3 rounded-full text-xs font-semibold ${
                           userRole === "docente" 
                             ? "bg-[#28a745]/20 text-[#28a745]" 
@@ -255,8 +295,37 @@ export default function UsersPage() {
                           {userRole === "docente" ? "Docente" : "Estudiante"}
                         </span>
                       </td>
-                      <td className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base">
+                      <td 
+                        className="py-2 sm:py-3 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm md:text-base cursor-pointer"
+                        onClick={() => {
+                          window.location.href = `/users/view?userId=${user._id}`;
+                        }}
+                      >
                         {new Date(user.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-2 sm:py-3 px-2 sm:px-4 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUserToDelete({ id: user._id!, name: user.name });
+                          }}
+                          disabled={isDeleting}
+                          className={`${
+                            isDeleting 
+                              ? 'bg-gray-500 cursor-not-allowed' 
+                              : 'bg-red-600 hover:bg-red-700 cursor-pointer'
+                          } text-white px-3 py-1 rounded-lg transition text-xs sm:text-sm flex items-center gap-1 mx-auto`}
+                          title="Eliminar usuario"
+                        >
+                          {isDeleting ? (
+                            <AiOutlineLoading3Quarters className="animate-spin" />
+                          ) : (
+                            <>
+                              <FaTrash className="text-xs" />
+                              <span className="hidden sm:inline">Eliminar</span>
+                            </>
+                          )}
+                        </button>
                       </td>
                     </tr>
                   );
@@ -273,6 +342,60 @@ export default function UsersPage() {
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleCreateUserSuccess}
       />
+
+      {/* Modal de confirmación de eliminación */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101434] rounded-lg shadow-2xl max-w-md w-full border border-[#333]">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-600/20 rounded-full">
+                <FaTrash className="text-3xl text-red-500" />
+              </div>
+              <h2 className="text-xl font-bold text-white text-center mb-2">
+                ¿Eliminar usuario?
+              </h2>
+              <p className="text-zinc-400 text-center mb-6">
+                ¿Estás seguro de que deseas eliminar al usuario{" "}
+                <span className="text-white font-semibold">"{userToDelete.name}"</span>?
+                <br />
+                <span className="text-red-400 text-sm">Esta acción no se puede deshacer.</span>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setUserToDelete(null)}
+                  disabled={deletingUserId === userToDelete.id}
+                  className="flex-1 bg-[#333] hover:bg-[#444] text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={deletingUserId === userToDelete.id}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {deletingUserId === userToDelete.id ? (
+                    <>
+                      <AiOutlineLoading3Quarters className="animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    "Eliminar"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast de notificaciones */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

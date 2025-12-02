@@ -223,3 +223,80 @@ export async function getAvailableRoles() {
     return [];
   }
 }
+
+/**
+ * Obtiene los profesores/docentes asignados al estudiante actual
+ * Esta función es para uso exclusivo de estudiantes
+ */
+export async function getMyTeachers() {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("No se encontró un token de acceso. Por favor, inicia sesión.");
+  }
+
+  const res = await fetch(`${API_URL}/users/my-teachers`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 401) {
+    throw new Error("No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.");
+  }
+
+  if (res.status === 403) {
+    throw new Error("No tienes permiso para acceder a esta información.");
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Error al obtener los profesores");
+  }
+
+  return res.json();
+}
+
+/**
+ * Elimina un usuario del sistema
+ * Esta función es para uso exclusivo de administradores
+ */
+export async function deleteUser(userId) {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    throw new Error("No se encontró un token de acceso. Por favor, inicia sesión.");
+  }
+
+  const res = await fetch(`${API_URL}/users/${userId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 401) {
+    throw new Error("No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.");
+  }
+
+  if (res.status === 403) {
+    throw new Error("No tienes permiso para eliminar este usuario.");
+  }
+
+  if (res.status === 404) {
+    throw new Error("Usuario no encontrado.");
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Error al eliminar el usuario");
+  }
+
+  // Si la respuesta es 204 No Content, no hay JSON que parsear
+  if (res.status === 204) {
+    return { success: true };
+  }
+
+  // Verificar si hay contenido antes de parsear JSON
+  const text = await res.text();
+  return text ? JSON.parse(text) : { success: true };
+}
