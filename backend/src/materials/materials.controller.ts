@@ -37,6 +37,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { MaterialListItemDto } from './dto/material-list-item.dto';
 
 @ApiTags('materials')
 @ApiBearerAuth('JWT-auth')
@@ -277,14 +278,31 @@ export class MaterialsController {
     return { id, accessUrl };
   }
 
-  @Get('courses/materials/access')
+  @Get('courses/materials/access/by-title')
   @Roles('administrador', 'docente', 'estudiante')
-  @ApiOperation({ summary: 'Obtener el enlace de acceso por título (opcionalmente filtrando por curso)' })
+  @ApiOperation({ summary: 'Obtener el enlace de acceso por título' })
   @ApiQuery({ name: 'title', required: true })
-  @ApiQuery({ name: 'courseId', required: false })
-  async getAccessUrlByTitle(@Query('title') title: string, @Query('courseId') courseId?: string) {
-    const { accessUrl, material } = await this.uploadService.getAccessUrlByTitle(title, courseId);
-    return { id: String(material._id), title: material.title, accessUrl };
+  async getAccessUrlByTitle(@Query('title') title: string) {
+    const { accessUrl, material } = await this.uploadService.getAccessUrlByTitle(title);
+    const dto: MaterialListItemDto = {
+      courseId: String((material as any).courseId),
+      uploaderId: String((material as any).uploaderId),
+      type: (material as any).type,
+      filename: (material as any).filename,
+      originalName: (material as any).originalName,
+      storageRef: accessUrl,
+      title: (material as any).title,
+      description: (material as any).description,
+    };
+    return dto;
+  }
+
+  @Get('courses/:courseId/materials')
+  @Roles('administrador', 'docente', 'estudiante')
+  @ApiOperation({ summary: 'Obtener todos los materiales del curso por courseId' })
+  @ApiParam({ name: 'courseId', required: true, description: 'ID del curso' })
+  async listMaterialsByCourse(@Param('courseId') courseId: string) {
+    return this.uploadService.listByCourse(courseId);
   }
 
   @Get('courses/materials/:id/download')
