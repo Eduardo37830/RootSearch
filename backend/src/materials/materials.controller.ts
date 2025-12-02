@@ -37,6 +37,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { StudentCourseMaterialDto } from './dto/student-course-material.dto';
 
 @ApiTags('materials')
 @ApiBearerAuth('JWT-auth')
@@ -293,5 +294,41 @@ export class MaterialsController {
   @ApiResponse({ status: 200, description: 'Descarga del archivo', content: { 'application/octet-stream': {} } })
   async downloadById(@Param('id') id: string, @Res() res: Response) {
     await this.uploadService.streamById(id, res);
+  }
+
+  @Get('student/:id/course-materials')
+  @Roles('administrador', 'estudiante')
+  @ApiOperation({
+    summary: 'Obtener todos los materiales de los cursos de un estudiante',
+    description:
+      'Obtiene todos los materiales (PDF, PPTX, VIDEO) de todos los cursos en los que está inscrito el estudiante especificado. Solo estudiantes pueden consultar su propia información.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del estudiante',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de materiales de los cursos del estudiante.',
+    type: [StudentCourseMaterialDto],
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'El usuario no tiene el rol de estudiante o solo puede consultar sus propios materiales.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acceso denegado.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Estudiante no encontrado.',
+  })
+  getStudentCourseMaterials(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.materialsService.getStudentCourseMaterials(id, user.id);
   }
 }
