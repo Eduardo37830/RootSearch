@@ -41,7 +41,7 @@ export default function Home() {
 
         <div className="flex gap-4">
           <a
-            href="/users/login"
+            href="/auth/login"
             className="bg-[#6356E5] hover:bg-[#7165E9] px-6 py-3 rounded-full font-semibold transition"
           >
             Get Started

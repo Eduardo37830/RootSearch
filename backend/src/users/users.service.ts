@@ -8,8 +8,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../auth/schemas/user.schema';
 import { Role, RoleDocument } from '../auth/schemas/role.schema';
+import { Course, CourseDocument } from '../courses/schemas/course.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import {
+  TeacherCourseInfoDto,
+} from './dto/teacher-course-info.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -17,6 +21,7 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @InjectModel(Course.name) private courseModel: Model<CourseDocument>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -29,10 +34,24 @@ export class UsersService {
       throw new ConflictException('El email ya está registrado');
     }
 
-    // Verificar que el rol existe
-    const role = await this.roleModel.findById(createUserDto.roleId).exec();
-    if (!role) {
-      throw new NotFoundException('El rol especificado no existe');
+    // Verificar que el rol existe o asignar por defecto 'estudiante'
+    let roleId = createUserDto.roleId;
+
+    if (!roleId) {
+      const defaultRole = await this.roleModel
+        .findOne({ name: 'estudiante' })
+        .exec();
+      if (!defaultRole) {
+        throw new NotFoundException(
+          'El rol por defecto (estudiante) no existe en el sistema',
+        );
+      }
+      roleId = (defaultRole as any)._id.toString();
+    } else {
+      const role = await this.roleModel.findById(roleId).exec();
+      if (!role) {
+        throw new NotFoundException('El rol especificado no existe');
+      }
     }
 
     // Hash de la contraseña
@@ -43,13 +62,16 @@ export class UsersService {
       name: createUserDto.name,
       email: createUserDto.email,
       password: hashedPassword,
-      roles: [new Types.ObjectId(createUserDto.roleId)],
+      photo: createUserDto.photo,
+      phone: createUserDto.phone,
+      address: createUserDto.address,
+      birthDate: createUserDto.birthDate,
+      roles: [new Types.ObjectId(roleId)],
     });
 
     const savedUser = await newUser.save();
 
-    // Retornar sin el password
-    return this.sanitizeUser(savedUser);
+    return savedUser;
   }
 
   async findAll(): Promise<User[]> {
@@ -130,6 +152,10 @@ export class UsersService {
     // Actualizar campos
     if (updateUserDto.name) user.name = updateUserDto.name;
     if (updateUserDto.email) user.email = updateUserDto.email;
+    if (updateUserDto.photo) user.photo = updateUserDto.photo;
+    if (updateUserDto.phone) user.phone = updateUserDto.phone;
+    if (updateUserDto.address) user.address = updateUserDto.address;
+    if (updateUserDto.birthDate) user.birthDate = updateUserDto.birthDate;
 
     // Si se actualiza la contraseña, hacer hash
     if (updateUserDto.password) {
@@ -151,6 +177,39 @@ export class UsersService {
     if (!result) {
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
+  }
+
+  async getMyTeachers(studentId: string): Promise<TeacherCourseInfoDto[]> {
+    if (!Types.ObjectId.isValid(studentId)) {
+      throw new BadRequestException('ID de estudiante inválido');
+    }
+
+    // Verificar que el usuario existe
+    const student = await this.userModel.findById(studentId).exec();
+    if (!student) {
+      throw new NotFoundException('Estudiante no encontrado');
+    }
+
+    // Buscar todos los cursos en los que está inscrito el estudiante
+    const courses = await this.courseModel
+      .find({ students: new Types.ObjectId(studentId) })
+      .populate('teacher', 'name email')
+      .exec();
+
+    // Mapear a DTOs con información del profesor
+    const teacherCourseInfo: TeacherCourseInfoDto[] = courses.map((course) => {
+      const teacher = course.teacher as any;
+
+      const result: TeacherCourseInfoDto = {
+        courseName: course.name,
+        teacherName: teacher.name,
+        teacherEmail: teacher.email,
+      };
+
+      return result;
+    });
+
+    return teacherCourseInfo;
   }
 
   private sanitizeUser(user: UserDocument): User {

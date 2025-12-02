@@ -4,6 +4,7 @@ import {
   IsString,
   MinLength,
   IsMongoId,
+  IsOptional,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -35,10 +36,48 @@ export class CreateUserDto {
   password: string;
 
   @ApiProperty({
-    description: 'ID del rol a asignar (DOCENTE o ESTUDIANTE)',
-    example: '507f1f77bcf86cd799439011',
+    description: 'URL de la foto de perfil',
+    example: 'https://example.com/photo.jpg',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  photo?: string;
+
+  @ApiProperty({
+    description: 'Número de teléfono',
+    example: '+57 300 123 4567',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({
+    description: 'Dirección de residencia',
+    example: 'Calle 123 # 45-67',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiProperty({
+    description: 'Fecha de nacimiento (DD/MM/YYYY)',
+    example: '01/01/2000',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  birthDate?: string;
+
+  @ApiProperty({
+    description:
+      'ID del rol a asignar (DOCENTE o ESTUDIANTE). Si no se envía, se asigna ESTUDIANTE por defecto.',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  @IsOptional()
   @IsMongoId()
-  roleId: string;
+  roleId?: string;
 }

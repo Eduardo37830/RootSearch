@@ -12,6 +12,15 @@ export class Course {
   @Prop({ required: true })
   description: string;
 
+  @Prop({ required: false })
+  photo: string;
+
+  @Prop({ type: String, required: false })
+  piaa_syllabus: string;
+
+  @Prop({ required: false })
+  pia: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   teacher: User | Types.ObjectId;
 

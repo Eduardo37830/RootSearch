@@ -140,12 +140,18 @@ describe('RootSearch E2E Tests', () => {
     }));
 
     // Mock del RoleModel - siempre retornar chainable
-    mockRoleModel = {
-      findOne: jest.fn().mockImplementation(() => chainable(null)),
-      findById: jest.fn().mockImplementation(() => chainable(mockRoles.estudiante)),
-      create: jest.fn(),
-      find: jest.fn().mockImplementation(() => chainable([])),
-    };
+    mockRoleModel = jest.fn();
+    mockRoleModel.findOne = jest.fn().mockImplementation(() => chainable(null));
+    mockRoleModel.findById = jest.fn().mockImplementation(() => chainable(mockRoles.estudiante));
+    mockRoleModel.findByIdAndUpdate = jest.fn().mockImplementation(() => chainable(null));
+    mockRoleModel.findByIdAndDelete = jest.fn().mockImplementation(() => chainable(null));
+    mockRoleModel.create = jest.fn();
+    mockRoleModel.find = jest.fn().mockImplementation(() => chainable([]));
+    // Constructor behavior
+    mockRoleModel.mockImplementation((data: any) => ({
+      ...data,
+      save: jest.fn().mockResolvedValue({ _id: '607f1f77bcf86cd799439099', ...data }),
+    }));
 
     // Mock del CourseModel as a constructor function and provide chainable defaults
     mockCourseModel = jest.fn();
@@ -165,10 +171,19 @@ describe('RootSearch E2E Tests', () => {
     }));
 
     // Mock del PermissionModel
-    mockPermissionModel = {
-      find: jest.fn().mockImplementation(() => chainable([])),
-      create: jest.fn(),
-    };
+    mockPermissionModel = jest.fn();
+    mockPermissionModel.find = jest.fn().mockImplementation(() => chainable([]));
+    mockPermissionModel.findOne = jest.fn().mockImplementation(() => chainable(null));
+    mockPermissionModel.findById = jest.fn().mockImplementation(() => chainable(null));
+    mockPermissionModel.findByIdAndUpdate = jest.fn().mockImplementation(() => chainable(null));
+    mockPermissionModel.findByIdAndDelete = jest.fn().mockImplementation(() => chainable(null));
+    mockPermissionModel.countDocuments = jest.fn().mockResolvedValue(0);
+    mockPermissionModel.create = jest.fn();
+    // Constructor behavior
+    mockPermissionModel.mockImplementation((data: any) => ({
+      ...data,
+      save: jest.fn().mockResolvedValue({ _id: '607f1f77bcf86cd799439099', ...data }),
+    }));
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -194,7 +209,7 @@ describe('RootSearch E2E Tests', () => {
       sub: mockUsers.admin._id,
       email: mockUsers.admin.email,
       name: mockUsers.admin.name,
-      roles: ['ADMIN'],
+      roles: ['administrador'],
       permissions: [],
     });
 
@@ -202,7 +217,7 @@ describe('RootSearch E2E Tests', () => {
       sub: mockUsers.docente._id,
       email: mockUsers.docente.email,
       name: mockUsers.docente.name,
-      roles: ['DOCENTE'],
+      roles: ['docente'],
       permissions: [{ name: 'create:course', method: 'POST' }],
     });
 
@@ -210,7 +225,7 @@ describe('RootSearch E2E Tests', () => {
       sub: mockUsers.estudiante._id,
       email: mockUsers.estudiante.email,
       name: mockUsers.estudiante.name,
-      roles: ['ESTUDIANTE'],
+      roles: ['estudiante'],
       permissions: [],
     });
   });
@@ -428,6 +443,119 @@ describe('RootSearch E2E Tests', () => {
 
         expect(Array.isArray(response.body)).toBe(true);
         expect(response.body.length).toBe(3);
+      });
+    });
+
+    describe('GET /users/my-teachers - Obtener profesores de mis cursos (Solo Estudiante)', () => {
+      it('debe obtener profesores de los cursos del estudiante (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        // Mock de cursos con profesores
+        const coursesWithTeachers = [
+          {
+            _id: mockCourse._id,
+            name: mockCourse.name,
+            description: mockCourse.description,
+            teacher: {
+              _id: mockUsers.docente._id,
+              name: mockUsers.docente.name,
+              email: mockUsers.docente.email,
+            },
+            students: [mockUsers.estudiante._id],
+          },
+          {
+            _id: '507f1f77bcf86cd799439032',
+            name: 'Matemáticas Avanzadas',
+            description: 'Curso de matemáticas',
+            teacher: {
+              _id: '507f1f77bcf86cd799439024',
+              name: 'Prof. María García',
+              email: 'maria@test.com',
+            },
+            students: [mockUsers.estudiante._id],
+          },
+        ];
+
+        mockCourseModel.find.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(coursesWithTeachers),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(2);
+        expect(response.body[0]).toHaveProperty('courseName');
+        expect(response.body[0]).toHaveProperty('teacherName');
+        expect(response.body[0]).toHaveProperty('teacherEmail');
+      });
+
+      it('debe retornar lista vacía si el estudiante no está inscrito en cursos (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        mockCourseModel.find.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([]),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(0);
+      });
+
+      it('debe denegar acceso a Docente (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.docente),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${docenteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe denegar acceso a Administrador (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe fallar sin token de autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/users/my-teachers')
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
       });
     });
   });
@@ -657,6 +785,805 @@ describe('RootSearch E2E Tests', () => {
 
         expect(Array.isArray(response.body)).toBe(true);
         expect(response.body.length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    describe('GET /courses/all - Ver todos los cursos (Solo Admin)', () => {
+      it('debe retornar todos los cursos como Administrador (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        const allCourses = [
+          mockCourse,
+          { ...mockCourse, _id: '507f1f77bcf86cd799439032', name: 'Curso 2' },
+          { ...mockCourse, _id: '507f1f77bcf86cd799439033', name: 'Curso 3' },
+        ];
+
+        mockCourseModel.find.mockReturnValue(chainable(allCourses));
+
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(3);
+      });
+
+      it('debe denegar acceso a Docente (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.docente),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .set('Authorization', `Bearer ${docenteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe denegar acceso a Estudiante (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe fallar sin token de autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/courses/all')
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
+      });
+    });
+  });
+
+  // ==========================================
+  // 🔑 PERMISSIONS MANAGEMENT TESTS
+  // ==========================================
+
+  describe('Permissions Management', () => {
+    const mockPermissions = {
+      createUser: {
+        _id: '607f1f77bcf86cd799439041',
+        name: 'create:user',
+        description: 'Permite crear usuarios',
+        method: 'POST',
+      },
+      readUser: {
+        _id: '607f1f77bcf86cd799439042',
+        name: 'read:user',
+        description: 'Permite leer usuarios',
+        method: 'GET',
+      },
+      updateUser: {
+        _id: '607f1f77bcf86cd799439043',
+        name: 'update:user',
+        description: 'Permite actualizar usuarios',
+        method: 'PATCH',
+      },
+    };
+
+    describe('POST /permissions - Crear permiso', () => {
+      it('debe fallar al crear permiso sin autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .post('/permissions')
+          .send({
+            name: 'test:permission',
+            description: 'Permiso de prueba',
+            method: 'GET',
+          })
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
+      });
+
+      it('debe fallar al crear permiso con rol Estudiante (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .post('/permissions')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .send({
+            name: 'test:permission',
+            description: 'Permiso de prueba',
+            method: 'GET',
+          })
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe fallar al crear permiso con rol Docente (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.docente),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .post('/permissions')
+          .set('Authorization', `Bearer ${docenteToken}`)
+          .send({
+            name: 'test:permission',
+            description: 'Permiso de prueba',
+            method: 'GET',
+          })
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe crear permiso exitosamente con rol Admin (201)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock: verificar que el permiso no existe
+        mockPermissionModel.findOne.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        // Mock del permiso guardado
+        const mockSavedPermission = {
+          _id: '607f1f77bcf86cd799439044',
+          name: 'delete:course',
+          description: 'Permite eliminar cursos',
+          method: 'DELETE',
+          save: jest.fn().mockResolvedValue({
+            _id: '607f1f77bcf86cd799439044',
+            name: 'delete:course',
+            description: 'Permite eliminar cursos',
+            method: 'DELETE',
+          }),
+        };
+
+        mockPermissionModel.mockImplementationOnce(() => mockSavedPermission);
+
+        const response = await request(app.getHttpServer())
+          .post('/permissions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'delete:course',
+            description: 'Permite eliminar cursos',
+            method: 'DELETE',
+          })
+          .expect(201);
+
+        expect(response.body).toHaveProperty('name', 'delete:course');
+        expect(response.body).toHaveProperty('method', 'DELETE');
+        expect(mockSavedPermission.save).toHaveBeenCalled();
+      });
+
+      it('debe fallar al crear permiso duplicado (409)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock: el permiso ya existe
+        mockPermissionModel.findOne.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPermissions.createUser),
+        });
+
+        const response = await request(app.getHttpServer())
+          .post('/permissions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'create:user',
+            description: 'Permite crear usuarios',
+            method: 'POST',
+          })
+          .expect(409);
+
+        expect(response.body).toHaveProperty('message', 'El permiso ya existe');
+      });
+    });
+
+    describe('GET /permissions - Obtener todos los permisos', () => {
+      it('debe fallar sin autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/permissions')
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
+      });
+
+      it('debe fallar con rol Estudiante (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/permissions')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe obtener todos los permisos exitosamente con rol Admin (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockPermissionModel.find.mockReturnValue({
+          exec: jest.fn().mockResolvedValue([
+            mockPermissions.createUser,
+            mockPermissions.readUser,
+            mockPermissions.updateUser,
+          ]),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/permissions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(3);
+        expect(response.body[0]).toHaveProperty('name');
+        expect(response.body[0]).toHaveProperty('method');
+      });
+    });
+
+    describe('GET /permissions/:id - Obtener permiso por ID', () => {
+      it('debe obtener un permiso específico exitosamente (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockPermissionModel.findById.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPermissions.createUser),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get(`/permissions/${mockPermissions.createUser._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(response.body).toHaveProperty('_id', mockPermissions.createUser._id);
+        expect(response.body).toHaveProperty('name', 'create:user');
+      });
+
+      it('debe fallar cuando el permiso no existe (404)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockPermissionModel.findById.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/permissions/507f1f77bcf86cd799439999')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(404);
+
+        expect(response.body).toHaveProperty('message');
+      });
+    });
+
+    describe('PATCH /permissions/:id - Actualizar permiso', () => {
+      it('debe actualizar un permiso exitosamente (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        const updatedPermission = {
+          ...mockPermissions.createUser,
+          description: 'Permite crear nuevos usuarios en el sistema',
+        };
+
+        mockPermissionModel.findByIdAndUpdate.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(updatedPermission),
+        });
+
+        const response = await request(app.getHttpServer())
+          .patch(`/permissions/${mockPermissions.createUser._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            description: 'Permite crear nuevos usuarios en el sistema',
+          })
+          .expect(200);
+
+        expect(response.body).toHaveProperty('description', 'Permite crear nuevos usuarios en el sistema');
+      });
+
+      it('debe fallar al actualizar permiso inexistente (404)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockPermissionModel.findByIdAndUpdate.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        const response = await request(app.getHttpServer())
+          .patch('/permissions/507f1f77bcf86cd799439999')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            description: 'Nueva descripción',
+          })
+          .expect(404);
+
+        expect(response.body).toHaveProperty('message');
+      });
+    });
+
+    describe('DELETE /permissions/:id - Eliminar permiso', () => {
+      it('debe eliminar un permiso exitosamente (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockPermissionModel.findByIdAndDelete.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPermissions.updateUser),
+        });
+
+        const response = await request(app.getHttpServer())
+          .delete(`/permissions/${mockPermissions.updateUser._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(mockPermissionModel.findByIdAndDelete).toHaveBeenCalledWith(
+          mockPermissions.updateUser._id,
+        );
+      });
+
+      it('debe fallar al eliminar permiso inexistente (404)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockPermissionModel.findByIdAndDelete.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        const response = await request(app.getHttpServer())
+          .delete('/permissions/507f1f77bcf86cd799439999')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(404);
+
+        expect(response.body).toHaveProperty('message');
+      });
+    });
+  });
+
+  // ==========================================
+  // 👔 ROLES MANAGEMENT TESTS
+  // ==========================================
+
+  describe('Roles Management', () => {
+    const mockCustomRole = {
+      _id: '607f1f77bcf86cd799439051',
+      name: 'moderador',
+      description: 'Rol de moderador',
+      permissions: [
+        {
+          _id: '607f1f77bcf86cd799439041',
+          name: 'read:user',
+          method: 'GET',
+        },
+      ],
+    };
+
+    describe('POST /roles - Crear rol', () => {
+      it('debe fallar al crear rol sin autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .post('/roles')
+          .send({
+            name: 'test-role',
+            description: 'Rol de prueba',
+            permissions: [],
+          })
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
+      });
+
+      it('debe fallar al crear rol con rol Estudiante (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.estudiante),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .post('/roles')
+          .set('Authorization', `Bearer ${estudianteToken}`)
+          .send({
+            name: 'test-role',
+            description: 'Rol de prueba',
+            permissions: [],
+          })
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe crear rol exitosamente con rol Admin (201)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock: verificar que el rol no existe
+        mockRoleModel.findOne.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        // Mock: verificar que los permisos existen
+        mockPermissionModel.countDocuments.mockResolvedValue(2);
+
+        const mockSavedRole = {
+          _id: '607f1f77bcf86cd799439052',
+          name: 'supervisor',
+          description: 'Rol de supervisor',
+          permissions: ['607f1f77bcf86cd799439041', '607f1f77bcf86cd799439042'],
+          save: jest.fn().mockResolvedValue({
+            _id: '607f1f77bcf86cd799439052',
+            name: 'supervisor',
+            description: 'Rol de supervisor',
+            permissions: ['607f1f77bcf86cd799439041', '607f1f77bcf86cd799439042'],
+          }),
+        };
+
+        mockRoleModel.mockImplementationOnce(() => mockSavedRole);
+
+        const response = await request(app.getHttpServer())
+          .post('/roles')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'supervisor',
+            description: 'Rol de supervisor',
+            permissions: ['607f1f77bcf86cd799439041', '607f1f77bcf86cd799439042'],
+          })
+          .expect(201);
+
+        expect(response.body).toHaveProperty('name', 'supervisor');
+        expect(mockSavedRole.save).toHaveBeenCalled();
+      });
+
+      it('debe fallar al crear rol duplicado (409)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock: el rol ya existe
+        mockRoleModel.findOne.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockRoles.admin),
+        });
+
+        const response = await request(app.getHttpServer())
+          .post('/roles')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'ADMIN',
+            description: 'Administrador',
+            permissions: [],
+          })
+          .expect(409);
+
+        expect(response.body).toHaveProperty('message', 'El rol ya existe');
+      });
+
+      it('debe fallar al crear rol con permisos inexistentes (404)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockRoleModel.findOne.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        // Mock: algunos permisos no existen
+        mockPermissionModel.countDocuments.mockResolvedValue(1); // Se esperaban 2
+
+        const response = await request(app.getHttpServer())
+          .post('/roles')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'test-role',
+            description: 'Rol de prueba',
+            permissions: ['607f1f77bcf86cd799439041', '607f1f77bcf86cd799439999'],
+          })
+          .expect(404);
+
+        expect(response.body).toHaveProperty('message', 'Uno o más permisos no existen');
+      });
+    });
+
+    describe('GET /roles - Obtener todos los roles', () => {
+      it('debe fallar sin autenticación (401)', async () => {
+        const response = await request(app.getHttpServer())
+          .get('/roles')
+          .expect(401);
+
+        expect(response.body).toHaveProperty('message', 'Unauthorized');
+      });
+
+      it('debe fallar con rol Docente (403)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.docente),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/roles')
+          .set('Authorization', `Bearer ${docenteToken}`)
+          .expect(403);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe obtener todos los roles exitosamente con rol Admin (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockRoleModel.find.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([
+              mockRoles.admin,
+              mockRoles.docente,
+              mockRoles.estudiante,
+              mockCustomRole,
+            ]),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/roles')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(Array.isArray(response.body)).toBe(true);
+        expect(response.body.length).toBe(4);
+        expect(response.body[0]).toHaveProperty('name');
+      });
+    });
+
+    describe('GET /roles/:id - Obtener rol por ID', () => {
+      it('debe obtener un rol específico exitosamente (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockRoleModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockCustomRole),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get(`/roles/${mockCustomRole._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(response.body).toHaveProperty('_id', mockCustomRole._id);
+        expect(response.body).toHaveProperty('name', 'moderador');
+        expect(response.body).toHaveProperty('permissions');
+      });
+
+      it('debe fallar cuando el rol no existe (404)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockRoleModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/roles/507f1f77bcf86cd799439999')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(404);
+
+        expect(response.body).toHaveProperty('message');
+      });
+    });
+
+    describe('PATCH /roles/:id - Actualizar rol', () => {
+      it('debe actualizar un rol exitosamente (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock findById inicial
+        mockRoleModel.findById.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockCustomRole),
+        });
+
+        mockPermissionModel.countDocuments.mockResolvedValue(1);
+
+        const updatedRole = {
+          ...mockCustomRole,
+          description: 'Rol de moderador actualizado',
+        };
+
+        mockRoleModel.findByIdAndUpdate.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(updatedRole),
+          }),
+        });
+
+        const response = await request(app.getHttpServer())
+          .patch(`/roles/${mockCustomRole._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            description: 'Rol de moderador actualizado',
+          })
+          .expect(200);
+
+        expect(response.body).toHaveProperty('description', 'Rol de moderador actualizado');
+      });
+
+      it('debe fallar al actualizar rol inexistente (404)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock para que findById retorne null (rol no existe)
+        mockRoleModel.findById.mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        const response = await request(app.getHttpServer())
+          .patch('/roles/507f1f77bcf86cd799439999')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            description: 'Nueva descripción',
+          })
+          .expect(404);
+
+        expect(response.body).toHaveProperty('message');
+      });
+
+      it('debe fallar al cambiar nombre de rol protegido (400)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock para que findById retorne el rol ADMIN (protegido)
+        mockRoleModel.findById.mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue(mockRoles.admin),
+        });
+
+        const response = await request(app.getHttpServer())
+          .patch(`/roles/${mockRoles.admin._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            name: 'super-admin',
+          })
+          .expect(400);
+
+        expect(response.body).toHaveProperty('message');
+        expect(response.body.message).toContain('protegido');
+      });
+    });
+
+    describe('DELETE /roles/:id - Eliminar rol', () => {
+      it('debe eliminar un rol personalizado exitosamente (200)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        mockRoleModel.findById.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockCustomRole),
+        });
+
+        mockRoleModel.findByIdAndDelete.mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockCustomRole),
+        });
+
+        const response = await request(app.getHttpServer())
+          .delete(`/roles/${mockCustomRole._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+
+        expect(mockRoleModel.findByIdAndDelete).toHaveBeenCalledWith(mockCustomRole._id);
+      });
+
+      it('debe fallar al eliminar rol protegido (400)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock para que findById retorne rol protegido
+        mockRoleModel.findById.mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue(mockRoles.admin),
+        });
+
+        const response = await request(app.getHttpServer())
+          .delete(`/roles/${mockRoles.admin._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(400);
+
+        expect(response.body).toHaveProperty('message');
+        expect(response.body.message).toContain('protegido');
+      });
+
+      it('debe fallar al eliminar rol inexistente (404)', async () => {
+        mockUserModel.findById.mockReturnValue({
+          populate: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockUsers.admin),
+          }),
+        });
+
+        // Mock para que findById retorne null (rol no existe)
+        mockRoleModel.findById.mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue(null),
+        });
+
+        const response = await request(app.getHttpServer())
+          .delete('/roles/507f1f77bcf86cd799439999')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(404);
+
+        expect(response.body).toHaveProperty('message');
       });
     });
   });

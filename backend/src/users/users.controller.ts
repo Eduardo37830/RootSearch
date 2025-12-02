@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,8 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../auth/schemas/user.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -28,7 +31,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 @ApiBearerAuth('JWT-auth')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN') // Solo los administradores pueden acceder a estos endpoints
+@Roles('administrador') // Solo los administradores pueden acceder a estos endpoints
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -36,7 +39,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Crear un nuevo usuario',
     description:
-      'Crea un nuevo usuario (Docente o Estudiante) en el sistema. Solo accesible por ADMIN.',
+      'Crea un nuevo usuario en el sistema. Si no se especifica rol, se asigna ESTUDIANTE por defecto. Solo accesible por ADMIN.',
   })
   @ApiResponse({
     status: 201,
@@ -54,7 +57,31 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
+  @Get('my-teachers')
+  @Roles('estudiante')
+  @ApiOperation({
+    summary: 'Obtener profesores de mis cursos (Solo Estudiantes)',
+    description:
+      'Obtiene la información de contacto de los profesores de todos los cursos en los que está inscrito el estudiante autenticado.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de profesores y cursos obtenida exitosamente.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Acceso denegado. Solo estudiantes.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Estudiante no encontrado.',
+  })
+  getMyTeachers(@CurrentUser() user: User) {
+    return this.usersService.getMyTeachers((user as any).id);
+  }
+
   @Get()
+  @Roles('administrador', 'docente')
   @ApiOperation({
     summary: 'Obtener todos los usuarios',
     description:
@@ -78,6 +105,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles('administrador', 'docente') // Admin y Docente pueden ver detalles de usuario
   @ApiOperation({
     summary: 'Obtener un usuario por ID',
     description: 'Obtiene la información detallada de un usuario específico.',
@@ -100,10 +128,11 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @Roles('administrador', 'docente', 'estudiante') // Todos los usuarios autenticados
   @ApiOperation({
     summary: 'Actualizar un usuario',
     description:
-      'Actualiza la información de un usuario existente. Todos los campos son opcionales.',
+      'Los usuarios pueden actualizar su propio perfil. Los administradores pueden actualizar cualquier usuario.',
   })
   @ApiParam({
     name: 'id',
@@ -115,6 +144,10 @@ export class UsersController {
     description: 'Usuario actualizado exitosamente.',
   })
   @ApiResponse({
+    status: 403,
+    description: 'No tienes permiso para actualizar este usuario.',
+  })
+  @ApiResponse({
     status: 404,
     description: 'Usuario no encontrado.',
   })
@@ -122,8 +155,36 @@ export class UsersController {
     status: 409,
     description: 'El email ya está en uso.',
   })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() currentUser: any,
+  ) {
+    // Verificar si el usuario está actualizando su propio perfil o si es admin
+    const isAdmin = currentUser.roles?.includes('administrador');
+    const isOwnProfile = currentUser.sub === id || currentUser.id === id;
+
+    if (!isAdmin && !isOwnProfile) {
+      throw new ForbiddenException(
+        'No tienes permiso para actualizar este usuario',
+      );
+    }
+
+    // Filtrar campos vacíos o undefined del DTO
+    const cleanedDto: any = {};
+    Object.keys(updateUserDto).forEach((key) => {
+      const value = updateUserDto[key];
+      if (value !== undefined && value !== null && value !== '') {
+        cleanedDto[key] = value;
+      }
+    });
+
+    // Si no es admin y está intentando cambiar el rol, bloquear
+    if (!isAdmin && cleanedDto.roleId) {
+      throw new ForbiddenException('No tienes permiso para cambiar el rol');
+    }
+
+    return this.usersService.update(id, cleanedDto);
   }
 
   @Delete(':id')

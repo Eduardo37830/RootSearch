@@ -89,6 +89,20 @@ cd infra/docker
 docker-compose -f docker-compose.dev.yml up --build
 ```
 
+## Servicio de transcripción de audio a texto
+
+Además del backend y frontend, debes tener ejecutándose el servicio de transcripción de audio a texto basado en Whisper:
+
+- Repositorio: https://github.com/Eduardo37830/whisperServer
+- Instalación:
+  ```
+  git clone https://github.com/Eduardo37830/whisperServer.git
+  cd whisperServer
+  pip install -r requirements.txt
+  python app.py
+  ```
+- Puedes configurar el modelo de Whisper que prefieras editando el archivo `services.py` dentro de ese repositorio.
+
 ## Contribución
 
 1. Crea una rama para tu feature: `git checkout -b feature/nueva-funcionalidad`
