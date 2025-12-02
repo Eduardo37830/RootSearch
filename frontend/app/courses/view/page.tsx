@@ -6,11 +6,12 @@ import { getCourseById, enrollStudentsToCourse, unenrollStudentsFromCourse } fro
 import { getUserProfile } from '../../../services/users';
 import { uploadAudio } from '../../../services/audio';
 import { getGeneratedContentByCourse } from '../../../services/generated-content';
-import { downloadMaterial, exportMaterialToPdf } from '../../../services/materials';
+import { downloadMaterial, exportMaterialToPdf, getMaterialsByCourseCurrent } from '../../../services/materials';
 import { getAllStudents } from '../../../services/students';
 import SideBar from '@/components/SideBar';
 import Toast from '@/components/Toast';
 import UploadMaterialModal from '@/components/upload_material';
+import EditCourseModal from '@/components/edit_course';
 import { FaBook, FaUser, FaCalendar, FaFileAlt, FaArrowLeft, FaDownload, FaFilePdf, FaUpload, FaUserPlus, FaUserMinus, FaTimes } from 'react-icons/fa';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
@@ -71,6 +72,7 @@ export default function CourseViewPage() {
   const [showRemoveStudentModal, setShowRemoveStudentModal] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState<{ _id: string; name: string; email: string } | null>(null);
   const [removingStudent, setRemovingStudent] = useState(false);
+  const [showEditCourseModal, setShowEditCourseModal] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -190,8 +192,22 @@ export default function CourseViewPage() {
     
     try {
       setLoadingMaterials(true);
-      const response = await getGeneratedContentByCourse(courseId);
+      const response = await getMaterialsByCourseCurrent(courseId);
       if (Array.isArray(response)) {
+        console.log('=== MATERIALES CARGADOS ===');
+        console.log('Total de materiales:', response.length);
+        console.log('Estructura completa:', JSON.stringify(response, null, 2));
+        
+        // Inspeccionar cada material
+        response.forEach((mat, idx) => {
+          console.log(`Material ${idx}:`, {
+            '_id': mat._id,
+            'id': mat.id,
+            'todasLasKeys': Object.keys(mat),
+            'objetoCompleto': mat
+          });
+        });
+        
         setMaterialsForCourse(response);
       }
     } catch (error) {
@@ -217,6 +233,12 @@ export default function CourseViewPage() {
   };
 
   const handleDownloadMaterial = async (materialId: string, materialTitle: string) => {
+    if (!materialId || materialId === 'undefined') {
+      setToast({ message: 'ID de material inválido', type: 'error' });
+      console.error('Material ID is invalid:', materialId);
+      return;
+    }
+
     try {
       setToast({ message: 'Descargando material...', type: 'info' });
       const blob = await downloadMaterial(materialId);
@@ -240,6 +262,12 @@ export default function CourseViewPage() {
   };
 
   const handleExportToPdf = async (materialId: string, materialTitle: string) => {
+    if (!materialId || materialId === 'undefined') {
+      setToast({ message: 'ID de material inválido', type: 'error' });
+      console.error('Material ID is invalid:', materialId);
+      return;
+    }
+
     try {
       setToast({ message: 'Exportando a PDF...', type: 'info' });
       const blob = await exportMaterialToPdf(materialId);
@@ -270,7 +298,7 @@ export default function CourseViewPage() {
       
       // Filtrar estudiantes que ya están inscritos en el curso
       const enrolledStudentIds = course?.students.map(s => s._id) || [];
-      const notEnrolled = students.filter(student => !enrolledStudentIds.includes(student._id));
+      const notEnrolled = students.filter((student: { _id: string; name: string; email: string }) => !enrolledStudentIds.includes(student._id));
       
       setAvailableStudents(notEnrolled);
     } catch (error) {
@@ -348,6 +376,62 @@ export default function CourseViewPage() {
     }
   };
 
+  const handleExportPiaaToPdf = async () => {
+    if (!course?.piaa_syllabus) {
+      setToast({ message: 'No hay PIAA para exportar', type: 'error' });
+      return;
+    }
+
+    try {
+      setToast({ message: 'Generando PDF del PIAA...', type: 'info' });
+      
+      // Crear contenido HTML para el PDF
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+            h1 { color: #6356E5; border-bottom: 3px solid #6356E5; padding-bottom: 10px; }
+            .info { margin-bottom: 20px; color: #666; }
+            .content { white-space: pre-wrap; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <h1>PIAA - Programa de la Asignatura</h1>
+          <div class="info">
+            <strong>Curso:</strong> ${course.name}<br>
+            <strong>Profesor:</strong> ${course.teacher.name}<br>
+            <strong>Fecha:</strong> ${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
+          <div class="content">${course.piaa_syllabus}</div>
+        </body>
+        </html>
+      `;
+
+      // Crear un Blob con el HTML
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Abrir en una nueva ventana para que el usuario pueda imprimir como PDF
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
+      
+      setToast({ message: 'Abriendo ventana de impresión...', type: 'success' });
+      
+      // Limpiar la URL después de un tiempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setToast({ message: `Error al exportar PIAA: ${errorMessage}`, type: 'error' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#040418] text-white">
@@ -395,10 +479,21 @@ export default function CourseViewPage() {
             <div className="w-16 h-16 bg-[#6356E5] text-white rounded-full flex items-center justify-center text-2xl font-bold">
               {course.name.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-                {course.name}
-              </h1>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl md:text-4xl font-bold">
+                  {course.name}
+                </h1>
+                {(user?.role.toLowerCase() === "docente" || user?.role.toLowerCase() === "administrador") && (
+                  <button
+                    onClick={() => setShowEditCourseModal(true)}
+                    className="bg-[#ffc107] hover:bg-[#e0a800] text-black px-4 py-2 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2 text-sm"
+                    title="Editar curso"
+                  >
+                    <span className=" sm:inline">Editar</span>
+                  </button>
+                )}
+              </div>
               <p className="text-zinc-400 text-sm mt-1">
                 Creado el {new Date(course.createdAt).toLocaleDateString('es-ES', {
                   year: 'numeric',
@@ -437,14 +532,65 @@ export default function CourseViewPage() {
         {/* PIAA Syllabus */}
         {course.piaa_syllabus && (
           <div className="bg-[#101434] p-6 rounded-lg shadow-lg mb-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <FaBook className="text-[#6356E5]" />
-              PIAA - Programa de la Asignatura
-            </h2>
-            <div className="bg-[#1a1a2e] p-4 rounded-lg">
-              <pre className="whitespace-pre-wrap text-zinc-300 text-sm leading-relaxed">
-                {course.piaa_syllabus}
-              </pre>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FaBook className="text-[#6356E5]" />
+                PIAA - Programa de la Asignatura
+              </h2>
+              <button
+                onClick={handleExportPiaaToPdf}
+                className="bg-[#dc3545] hover:bg-[#c82333] text-white px-4 py-2 rounded-lg transition font-semibold cursor-pointer flex items-center gap-2 text-sm"
+                title="Exportar PIAA a PDF"
+              >
+                <FaFilePdf />
+                <span className="hidden sm:inline">Exportar PDF</span>
+              </button>
+            </div>
+            <div className="bg-[#1a1a2e] p-6 rounded-lg">
+              <div 
+                className="text-zinc-300 leading-relaxed"
+                style={{
+                  fontSize: '0.95rem',
+                  lineHeight: '1.8'
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: course.piaa_syllabus
+                    // Títulos principales (sin bullets, en mayúsculas o frases interrogativas)
+                    .replace(/^([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+)$/gm, '<h2 style="color: #6356E5; font-size: 1.3rem; font-weight: bold; margin-top: 2rem; margin-bottom: 1rem; border-bottom: 2px solid #6356E5; padding-bottom: 0.5rem;">$1</h2>')
+                    .replace(/^(¿[^?]+\?)$/gm, '<h3 style="color: #6356E5; font-size: 1.2rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 0.8rem;">$1</h3>')
+                    
+                    // Subtítulos (comienzan con mayúscula y terminan con :)
+                    .replace(/^([A-Z][^:]+:)$/gm, '<h4 style="color: #8b7ff5; font-size: 1.05rem; font-weight: 600; margin-top: 1.2rem; margin-bottom: 0.5rem;">$1</h4>')
+                    
+                    // Items con bullets (•) - mantener como están
+                    .replace(/^•(.+)$/gm, '<div style="display: flex; margin-left: 1.5rem; margin-bottom: 0.4rem;"><span style="color: #6356E5; margin-right: 0.5rem;">•</span><span>$1</span></div>')
+                    
+                    // Items con números (R1., R2., etc) - destacar
+                    .replace(/^•?(R\d+\.)(.+)$/gm, '<div style="display: flex; margin-left: 1.5rem; margin-bottom: 0.5rem;"><span style="color: #28a745; font-weight: bold; margin-right: 0.5rem;">$1</span><span>$2</span></div>')
+                    
+                    // Objetivos específicos como subtítulo especial
+                    .replace(/(Objetivos específicos)/g, '<p style="color: #ffc107; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1rem;">$1</p>')
+                    
+                    // Información del profesor
+                    .replace(/^([A-Z][a-z]+.*\d{4})$/gm, '<p style="color: #8b7ff5; font-style: italic; margin-bottom: 0.3rem;">$1</p>')
+                    .replace(/([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi, '<a href="mailto:$1" style="color: #6356E5; text-decoration: underline;">$1</a>')
+                    
+                    // Porcentajes de evaluación - destacar
+                    .replace(/^•([^:]+:\s*\d+\s*%)$/gm, '<div style="display: flex; justify-content: space-between; margin-left: 1.5rem; margin-bottom: 0.3rem; padding: 0.3rem; background: rgba(99, 86, 229, 0.1); border-radius: 4px;"><span>$1</span></div>')
+                    
+                    // Notas importantes (entre paréntesis o con "Tener en cuenta")
+                    .replace(/(Tener en cuenta:?|Nota:?)/gi, '<strong style="color: #ffc107; display: block; margin-top: 1rem;">⚠️ $1</strong>')
+                    
+                    // Saltos de línea dobles para párrafos
+                    .replace(/\n\n+/g, '</p><p style="margin-top: 0.8rem;">')
+                    // Saltos de línea simples
+                    .replace(/\n/g, '<br />')
+                    
+                    // Wrap en párrafo
+                    .replace(/^(.)/gm, '<p>$1')
+                    .replace(/$/gm, '</p>')
+                }}
+              />
             </div>
           </div>
         )}
@@ -889,37 +1035,50 @@ export default function CourseViewPage() {
               </div>
             ) : materialsForCourse.length > 0 ? (
               <div className="space-y-3">
-                {materialsForCourse.map((material, index) => (
+                {materialsForCourse.map((material, index) => {
+                  const materialId = material._id?.toString() || material._id || String(material._id) || material.id;
+                  return (
                   <div
-                    key={material._id}
+                    key={materialId || `material-${index}`}
                     className="bg-[#1a1a2e] p-4 rounded-lg border border-[#333] hover:border-[#6356E5] transition"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mb-3">
                           <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
                             #{index + 1}
                           </span>
                           <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                            material.estado === 'PUBLICADO'
+                            material.status === 'READY'
                               ? 'bg-[#28a745] text-white'
-                              : material.estado === 'PENDIENTE_REVISION'
+                              : material.status === 'PENDING'
                               ? 'bg-[#ffc107] text-black'
                               : 'bg-[#6c757d] text-white'
                           }`}>
-                            {material.estado}
+                            {material.status || 'N/A'}
+                          </span>
+                          <span className="text-xs bg-[#1a1a3e] text-white/70 px-2 py-1 rounded">
+                            {material.type || 'PDF'}
                           </span>
                         </div>
-                        <p className="text-white/80 text-sm mb-2">
-                          {material.tematica || `Material ${index + 1}`}
+                        <p className="text-white font-medium text-base mb-2">
+                          📄 {material.filename || material.originalName || `Material ${index + 1}`}
                         </p>
-                        <p className="text-white/60 text-xs">
-                          Creado: {new Date(material.createdAt).toLocaleDateString('es-ES')}
-                        </p>
+                        {material.description && (
+                          <p className="text-white/70 text-sm mb-2">
+                            {material.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 text-xs text-white/60">
+                          <span>📦 Tamaño: {material.size ? `${(material.size / 1024).toFixed(2)} KB` : 'N/A'}</span>
+                          <span>☁️ {material.storageProvider || 'N/A'}</span>
+                          <span>📅 {new Date(material.createdAt).toLocaleDateString('es-ES')}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-zinc-400 text-center py-8">
@@ -960,39 +1119,62 @@ export default function CourseViewPage() {
               </div>
             ) : materialsForCourse.length > 0 ? (
               <div className="space-y-3">
-                {materialsForCourse.map((material, index) => (
+                {materialsForCourse.map((material, index) => {
+                  // Intentar obtener el _id de diferentes maneras (Mongoose puede tenerlo como getter)
+                  const materialId = material._id?.toString() || material._id || String(material._id) || material.id;
+                  console.log('Material en descarga:', { 
+                    id: materialId, 
+                    _id: material._id,
+                    _idType: typeof material._id,
+                    keys: Object.keys(material),
+                    material 
+                  });
+                  return (
                   <div
-                    key={material._id}
-                    onClick={() => handleDownloadMaterial(material._id, material.tematica || `Material-${index + 1}`)}
+                    key={materialId || `download-material-${index}`}
+                    onClick={() => {
+                      console.log('Click en material:', materialId);
+                      handleDownloadMaterial(materialId, material.filename || material.originalName || `Material-${index + 1}`);
+                    }}
                     className="bg-[#1a1a2e] p-4 rounded-lg border border-[#333] hover:border-[#17a2b8] transition cursor-pointer group"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mb-3">
                           <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
                             #{index + 1}
                           </span>
                           <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                            material.estado === 'PUBLICADO'
+                            material.status === 'READY'
                               ? 'bg-[#28a745] text-white'
-                              : material.estado === 'PENDIENTE_REVISION'
+                              : material.status === 'PENDING'
                               ? 'bg-[#ffc107] text-black'
                               : 'bg-[#6c757d] text-white'
                           }`}>
-                            {material.estado}
+                            {material.status || 'N/A'}
+                          </span>
+                          <span className="text-xs bg-[#1a1a3e] text-white/70 px-2 py-1 rounded">
+                            {material.type || 'PDF'}
                           </span>
                         </div>
-                        <p className="text-white/80 text-sm mb-2">
-                          {material.tematica || `Material ${index + 1}`}
+                        <p className="text-white font-medium text-base mb-2">
+                          📄 {material.filename || material.originalName || `Material ${index + 1}`}
                         </p>
-                        <p className="text-white/60 text-xs">
-                          Creado: {new Date(material.createdAt).toLocaleDateString('es-ES')}
-                        </p>
+                        {material.description && (
+                          <p className="text-white/70 text-sm mb-2">
+                            {material.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 text-xs text-white/60">
+                          <span>📦 {material.size ? `${(material.size / 1024).toFixed(2)} KB` : 'N/A'}</span>
+                          <span>☁️ {material.storageProvider || 'N/A'}</span>
+                        </div>
                       </div>
                       <FaDownload className="text-[#17a2b8] text-xl group-hover:scale-110 transition" />
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-zinc-400 text-center py-8">
@@ -1228,39 +1410,62 @@ export default function CourseViewPage() {
               </div>
             ) : materialsForCourse.length > 0 ? (
               <div className="space-y-3">
-                {materialsForCourse.map((material, index) => (
+                {materialsForCourse.map((material, index) => {
+                  // Intentar obtener el _id de diferentes maneras (Mongoose puede tenerlo como getter)
+                  const materialId = material._id?.toString() || material._id || String(material._id) || material.id;
+                  console.log('Material en exportar:', { 
+                    id: materialId, 
+                    _id: material._id,
+                    _idType: typeof material._id,
+                    keys: Object.keys(material),
+                    material 
+                  });
+                  return (
                   <div
-                    key={material._id}
-                    onClick={() => handleExportToPdf(material._id, material.tematica || `Material-${index + 1}`)}
+                    key={materialId || `export-material-${index}`}
+                    onClick={() => {
+                      console.log('Click en exportar:', materialId);
+                      handleExportToPdf(materialId, material.filename || material.originalName || `Material-${index + 1}`);
+                    }}
                     className="bg-[#1a1a2e] p-4 rounded-lg border border-[#333] hover:border-[#dc3545] transition cursor-pointer group"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mb-3">
                           <span className="bg-[#6356E5] text-white font-bold px-3 py-1 rounded-full text-sm">
                             #{index + 1}
                           </span>
                           <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                            material.estado === 'PUBLICADO'
+                            material.status === 'READY'
                               ? 'bg-[#28a745] text-white'
-                              : material.estado === 'PENDIENTE_REVISION'
+                              : material.status === 'PENDING'
                               ? 'bg-[#ffc107] text-black'
                               : 'bg-[#6c757d] text-white'
                           }`}>
-                            {material.estado}
+                            {material.status || 'N/A'}
+                          </span>
+                          <span className="text-xs bg-[#1a1a3e] text-white/70 px-2 py-1 rounded">
+                            {material.type || 'PDF'}
                           </span>
                         </div>
-                        <p className="text-white/80 text-sm mb-2">
-                          {material.tematica || `Material ${index + 1}`}
+                        <p className="text-white font-medium text-base mb-2">
+                          📄 {material.filename || material.originalName || `Material ${index + 1}`}
                         </p>
-                        <p className="text-white/60 text-xs">
-                          Creado: {new Date(material.createdAt).toLocaleDateString('es-ES')}
-                        </p>
+                        {material.description && (
+                          <p className="text-white/70 text-sm mb-2">
+                            {material.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 text-xs text-white/60">
+                          <span>📦 {material.size ? `${(material.size / 1024).toFixed(2)} KB` : 'N/A'}</span>
+                          <span>☁️ {material.storageProvider || 'N/A'}</span>
+                        </div>
                       </div>
                       <FaFilePdf className="text-[#dc3545] text-xl group-hover:scale-110 transition" />
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-zinc-400 text-center py-8">
@@ -1276,6 +1481,23 @@ export default function CourseViewPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modal de Editar Curso */}
+      {courseId && (
+        <EditCourseModal
+          isOpen={showEditCourseModal}
+          onClose={() => setShowEditCourseModal(false)}
+          onSuccess={async () => {
+            setToast({ message: 'Curso actualizado exitosamente', type: 'success' });
+            // Recargar el curso para mostrar los cambios
+            if (courseId) {
+              const updatedCourse = await getCourseById(courseId);
+              setCourse(updatedCourse);
+            }
+          }}
+          courseId={courseId}
+        />
       )}
     </div>
   );

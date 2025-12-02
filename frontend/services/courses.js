@@ -167,3 +167,27 @@ export async function unenrollStudentsFromCourse(courseId, studentIds) {
 
   return response.json();
 }
+
+export async function updateCourseWithFile(courseId, formData) {
+  const token = localStorage.getItem('access_token');
+  
+  if (!token) {
+    throw new Error('No se encontró un token de acceso. Por favor, inicia sesión.');
+  }
+  
+  const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseId)}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // No establecer Content-Type cuando se envía FormData
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Error desconocido');
+    throw new Error(errorText || 'Error al actualizar el curso');
+  }
+
+  return response.json();
+}

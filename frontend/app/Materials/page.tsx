@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import SideBar from '@/components/SideBar';
 import { getUserProfile } from '@/services/users';
-import { getAllCourses } from '@/services/courses';
+import { getAllCourses, getAllCoursesForAdmin } from '@/services/courses';
 import { getMaterialsByCourse, uploadAudioAndGenerate, updateMaterial, publishMaterial } from '@/services/materials';
 import { AiOutlineLoading3Quarters, AiOutlineCloudUpload, AiOutlineEdit, AiOutlineEye, AiOutlineCheck } from 'react-icons/ai';
 import { FaBook, FaFileAudio } from 'react-icons/fa';
@@ -30,7 +30,14 @@ export default function MaterialsPage() {
         const role = userData.roles?.[0]?.name || "";
         setUser({ ...userData, role });
 
-        const coursesData = await getAllCourses(userData._id);
+        // Si es administrador, obtener TODOS los cursos del sistema
+        let coursesData;
+        if (role.toLowerCase() === 'administrador') {
+          coursesData = await getAllCoursesForAdmin();
+        } else {
+          coursesData = await getAllCourses(userData._id);
+        }
+        
         setCourses(coursesData);
         
         if (coursesData.length > 0) {

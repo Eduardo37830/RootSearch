@@ -113,14 +113,21 @@ export class MaterialUploadService {
       .exec();
 
     return items.map((m: any) => ({
+      _id: String(m._id),
       courseId: String(m.courseId),
       uploaderId: String(m.uploaderId),
       type: m.type,
       filename: m.filename,
       originalName: m.originalName,
+      mime: m.mime,
+      size: m.size,
+      storageProvider: m.storageProvider,
       storageRef: this.storage.getAccessUrl(m.storageRef),
       title: m.title,
       description: m.description,
+      status: m.status,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
     }));
   }
 }

@@ -257,6 +257,40 @@ export const getMaterialsByCourse = async (courseId) => {
 };
 
 /**
+ * Obtiene todos los materiales de un curso usando el nuevo endpoint
+ * @param {string} courseId - ID del curso
+ * @returns {Promise<Array>} - Lista de materiales del curso
+ */
+export async function getMaterialsByCourseCurrent(courseId) {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('No se encontró un token de acceso. Por favor, inicia sesión.');
+  }
+
+  const res = await fetch(`${API_URL}/materials/courses/${courseId}/materials`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 401) {
+    throw new Error('No autorizado. El token puede haber expirado. Por favor, inicia sesión nuevamente.');
+  }
+
+  if (res.status === 404) {
+    throw new Error('Curso no encontrado.');
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || 'Error al obtener los materiales del curso');
+  }
+
+  return res.json();
+}
+
+/**
  * Obtiene un material por su ID
  * @param {string} id - ID del material
  * @returns {Promise<Object>} - Datos del material
