@@ -10,6 +10,8 @@ import {
   Transcription,
   TranscriptionSchema,
 } from '../transcription/schemas/transcription.schema';
+import { Course, CourseSchema } from '../courses/schemas/course.schema';
+import { User, UserSchema } from '../auth/schemas/user.schema';
 import { TranscriptionModule } from '../transcription/transcription.module';
 import { ContentGenerationModule } from '../content-generation/content-generation.module';
 import { PdfExporterService } from './services/pdf-exporter.service';
@@ -29,6 +31,8 @@ import { AuthModule } from '../auth/auth.module';
       { name: GeneratedMaterial.name, schema: GeneratedMaterialSchema },
       { name: Transcription.name, schema: TranscriptionSchema },
       { name: CourseMaterial.name, schema: CourseMaterialSchema },
+      { name: Course.name, schema: CourseSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     ContentGenerationModule,
     TranscriptionModule,
