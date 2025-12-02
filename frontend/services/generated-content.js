@@ -34,3 +34,50 @@ export async function getGeneratedContentByCourse(courseId) {
     throw error;
   }
 }
+
+export async function publishMaterial(materialId) {
+  try {
+    const token = localStorage.getItem('access_token');
+
+    const response = await fetch(`${API_URL}/materials/${materialId}/publish`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Error publishing material');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error in publishMaterial:', error);
+    throw error;
+  }
+}
+
+export async function updateMaterial(materialId, updateData) {
+  try {
+    const token = localStorage.getItem('access_token');
+
+    const response = await fetch(`${API_URL}/materials/${materialId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Error updating material');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error in updateMaterial:', error);
+    throw error;
+  }
+}
